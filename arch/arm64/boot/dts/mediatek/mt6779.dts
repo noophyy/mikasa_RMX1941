@@ -1921,7 +1921,12 @@ firmware_class.path=/vendor/firmware";
 		clock-names = "ssusb_clk", "sys_ck";
 		#phy-cells = <1>;
 	};
-
+//#ifdef VENDOR_EDIT
+/*LIZHIJIE@BSP.CHG.BASIC lzj add for phy_tuning*/
+	mediatek_phy_tuning:mediatek_phy_tuning {
+		//add for tuning arg;
+	};
+//#endif
 	usb0phy:usbphy0@11e40000 {
 		compatible = "mediatek,mt6779-phy";
 		reg = <0 0x11e40000 0 0x10000>,
@@ -2153,7 +2158,9 @@ firmware_class.path=/vendor/firmware";
 
 	/* feature : $enable $dl_mem $ul_mem $ref_mem */
 	snd_audio_dsp: snd_audio_dsp {
-		compatible = "mediatek,snd_audio_dsp";
+//#ifdef VENDOR_EDIT
+//#Yongpei.Yao@PSW.MM.AudioDriver.Platform 2019/11/20, move snd_audio_dsp to project dts file
+		/*compatible = "mediatek,snd_audio_dsp";
 		mtk_dsp_voip = <0x1 0x1 0xffffffff 0xffffffff>;
 		mtk_dsp_primary = <0x0 0x0 0xffffffff 0xffffffff>;
 		mtk_dsp_offload = <0x1 0x6 0xffffffff 0xffffffff>;
@@ -2164,7 +2171,8 @@ firmware_class.path=/vendor/firmware";
 		mtk_dsp_dataprovider = <0x0 0xffffffff 0xf 0xffffffff>;
 		mtk_dsp_call_final = <0x0 0x4 0xf 0x13>;
 		mtk_dsp_ktv = <0x1 0x8 0x11 0xffffffff>;
-		swdsp_smartpa_process_enable = <0x0>;
+		swdsp_smartpa_process_enable = <0x0>;*/
+//#endif  /*VENDOR_EDIT*/
 	};
 
 	snd_scp_spk: snd_scp_spk {
@@ -2182,7 +2190,7 @@ firmware_class.path=/vendor/firmware";
 	mtk-btcvsd-snd@18050000 {
 		compatible = "mediatek,mtk-btcvsd-snd";
 		reg=<0 0x18050000 0 0x1000>, /*PKV_PHYSICAL_BASE*/
-		    <0 0x18080000 0 0x10000>; /*SRAM_BANK2*/
+		    <0 0x18090000 0 0x10000>; /*SRAM_BANK2*/
 		interrupts = <GIC_SPI 315 IRQ_TYPE_LEVEL_LOW>;
 		mediatek,infracfg = <&infracfg_ao>;
 		mediatek,offset =<0xf00 0x800 0x140 0x144 0x148>;
@@ -2193,6 +2201,27 @@ firmware_class.path=/vendor/firmware";
 	mt_soc_playback_offload {
 		compatible = "mediatek,mt_soc_offload_common";
 	};
+//#ifdef VENDOR_EDIT
+//Anhui.Sun@PSW.NW.RF, 2018/12/19, Add for SWTP - RF cable detection
+	swtp: swtp {
+	};
+	swtp1: swtp1 {
+	};
+//#endif  /*VENDOR_EDIT*/
+	//#ifdef VENDOR_EDIT
+	//#Yongzhi.Zhang@PSW.MM.AudioDriver.feature, 2018/11/14, add for dbmdx soundtrigger
+	dbmdx-snd-soc-platform {
+		compatible = "dspg,dbmdx-snd-soc-platform";
+	};
+
+	snd-dbmdx-mach-drv {
+		compatible = "dspg,snd-dbmdx-mach-drv";
+	};
+
+	dbmdx: dbmdx {
+		compatible = "dspg,dbmdx-codec";
+	};
+	//#endif /* VENDOR_EDIT */
 
 	i2c_common: i2c_common {
 		compatible = "mediatek,i2c_common";
@@ -2624,11 +2653,21 @@ firmware_class.path=/vendor/firmware";
 	accdet: accdet {
 		compatible = "mediatek,pmic-accdet";
 	};
-
-	goodix_fp: fingerprint {
-		compatible = "mediatek,goodix-fp";
+	silead_fp: silead_fp{
+		compatible = "sil,silead_fp";
 	};
-
+        //#ifdef VENDOR_EDIT
+        /* Wei.Mei@PSW.BSP.Fingerprint.Basic, 2019/11/19, Add for GF  driver*/
+	goodix_fp: goodix_fp {
+		compatible = "goodix,goodix_fp";
+	};
+	oppo_fp_common:oppo_fp_common { //Slave driver and CS ID
+        	compatible = "oppo,fp_common"; //Manufacture, and Model
+    	};
+    	oppo_secure_common:oppo_secure_common { //Slave driver and CS ID
+        	compatible = "oppo,secure_common"; //Manufacture, and Model
+        };
+	//#endif //VENDOR_EDIT
 	mt6359_gauge {
 		compatible = "mediatek,mt6359_gauge";
 		gauge_name = "gauge";
@@ -2795,7 +2834,14 @@ firmware_class.path=/vendor/firmware";
 
 	dsi_te: dsi_te {
 		compatible = "mediatek, dsi_te-eint";
-		status = "disabled";
+		/* #ifndef VENDOR_EDIT */
+		/* Yongpeng.Yi@PSW.MM.Display.LCD.Machine, 2018/11/05, modify te esd check */
+		/* status = "disabled"; */
+		/* #else */
+		interrupt-parent = <&pio>;
+		interrupts = <43 IRQ_TYPE_EDGE_RISING 43 1>;
+		status = "okay";
+		/* #endif VENDOR_EDIT*/
 	};
 
 	disp_ovl0@14008000 {
@@ -3995,10 +4041,10 @@ firmware_class.path=/vendor/firmware";
 	flashlight_core: flashlight_core {
 		compatible = "mediatek,flashlight_core";
 	};
-
+	/*#ifdef VENDOR_EDIT Henry.Chang@Camera.Drv add for singleflashlightteset 20191105*/
 	flashlights_mt6360: flashlights_mt6360 {
 		compatible = "mediatek,flashlights_mt6360";
-		decouple = <1>;
+		decouple = <0>;
 		channel@1 {
 			type = <0>;
 			ct = <0>;
@@ -4010,7 +4056,7 @@ firmware_class.path=/vendor/firmware";
 			part = <0>;
 		};
 	};
-
+	/*#endif*/
 	odm: odm {
 		compatible = "simple-bus";
 		/* reserved for overlay by odm */
@@ -4205,6 +4251,8 @@ firmware_class.path=/vendor/firmware";
 	als: als {
 	};
 
+	hall_1: hall_1 {
+	};
 	smart_pa: smart_pa {
 	};
 

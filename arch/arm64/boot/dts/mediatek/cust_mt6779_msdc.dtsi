@@ -62,7 +62,12 @@
 	pinctl_ddr50 = <&msdc1_pins_ddr50>;
 	register_setting = <&msdc1_register_setting_default>;
 	host_function = /bits/ 8 <MSDC_SD>;
-	cd_level = /bits/ 8 <MSDC_CD_LOW>;
+	//#ifndef VENDOR_EDIT
+	/* tianwen@PSW.BSP.Kernel.Driver, 2019/10/10, Modify for T_card eint,low active change to high active */
+	//cd_level = /bits/ 8 <MSDC_CD_LOW>;
+	//#else
+	cd_level = /bits/ 8 <MSDC_CD_HIGH>;
+	//#endif /*VENDOR_EDIT*/
 	cd-gpios = <&pio 8 0>;
 #ifndef CONFIG_FPGA_EARLY_PORTING
 	status = "okay";

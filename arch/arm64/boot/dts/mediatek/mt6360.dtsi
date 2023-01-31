@@ -33,14 +33,22 @@
 			interrupts = <4 0>, <6 0>, <7 0>, <9 0>,
 				     <12 0>, <13 0>, <14 0>, <15 0>,
 				     <27 0>, <29 0>, <30 0>, <32 0>,
-				     <35 0>, <40 0>, <48 0>, <60 0>;
+//#ifndef VENDOR_EDIT /* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Modify for OTG */
+//				     <35 0>, <40 0>, <48 0>, <60 0>;
+//#else
+				     <35 0>, <40 0>, <47 0>, <48 0>, <60 0>;
+//#endif
 			interrupt-names = "chg_treg_evt", "chg_mivr_evt",
 					  "pwr_rdy_evt", "chg_batsysuv_evt",
 					  "chg_vsysuv_evt", "chg_vsysov_evt",
 					  "chg_vbatov_evt", "chg_vbusov_evt",
 					  "chg_tmri", "chg_adpbadi",
 					  "chg_rvpi",  "chg_aiccmeasl",
-					  "wdtmri", "pumpx_donei",
+//#ifndef VENDOR_EDIT /* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Modify for OTG */
+//					  "wdtmri", "pumpx_donei",
+//#else
+					  "wdtmri", "pumpx_donei", "bst_olpi",
+//#endif
 					  "attachi", "chrdet_ext_evt";
 			io-channels = <&adc 0>, <&adc 1>, <&adc 3>, <&adc 4>,
 				      <&adc 5>, <&adc 6>, <&adc 8>, <&adc 10>;
@@ -162,7 +170,7 @@
 		};
 	};
 
-	mt6360_ldo_dts {
+	mt6360_ldo: mt6360_ldo_dts {
 		status = "ok";
 		interrupt-parent = <&mt6360_pmu>;
 		interrupts = <113 0>, <114 0>, <115 0>, <117 0>,
@@ -175,7 +183,7 @@
 		ldo2_ctrls = [00 80 01 2d 44];
 		ldo3_ctrls = [00 80 01 2d a4];
 		ldo5_ctrls = [00 80 81 2d a4];
-		ldo1 {
+		mt_pmic_vfp_ldo_reg: ldo1 {
 			regulator-compatible = "LDO1";
 			regulator-name = "VFP";
 			regulator-min-microvolt = <1200000>;
