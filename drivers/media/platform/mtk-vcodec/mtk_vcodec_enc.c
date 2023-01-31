@@ -244,6 +244,13 @@ static int vidioc_venc_s_ctrl(struct v4l2_ctrl *ctrl)
 		p->bitrate = ctrl->val;
 		ctx->param_change |= MTK_ENCODE_PARAM_BITRATE;
 		break;
+	case V4L2_CID_MPEG_MTK_SEC_ENCODE:
+		p->svp_mode = ctrl->val;
+		ctx->param_change |= MTK_ENCODE_PARAM_SEC_ENCODE;
+		mtk_v4l2_debug(0, "[%d] V4L2_CID_MPEG_MTK_SEC_ENCODE id %d val %d array[0] %d array[1] %d",
+			ctx->id, ctrl->id, ctrl->val,
+		ctrl->p_new.p_u32[0], ctrl->p_new.p_u32[1]);
+		break;
 	case V4L2_CID_MPEG_VIDEO_B_FRAMES:
 		mtk_v4l2_debug(2, "V4L2_CID_MPEG_VIDEO_B_FRAMES val = %d",
 			       ctrl->val);
@@ -1127,11 +1134,6 @@ static int vidioc_venc_qbuf(struct file *file, void *priv,
 
 	// Check if need to proceed cache operations
 	vq = v4l2_m2m_get_vq(ctx->m2m_ctx, buf->type);
-	if (buf->index >= vq->num_buffers) {
-		mtk_v4l2_err("[%d] buffer index %d out of range %d",
-			ctx->id, buf->index, vq->num_buffers);
-		return -EINVAL;
-	}
 	vb = vq->bufs[buf->index];
 	vb2_v4l2 = container_of(vb, struct vb2_v4l2_buffer, vb2_buf);
 	mtkbuf = container_of(vb2_v4l2, struct mtk_video_enc_buf, vb);
@@ -1649,6 +1651,15 @@ static int mtk_venc_param_change(struct mtk_vcodec_ctx *ctx)
 					 VENC_SET_PARAM_ADJUST_BITRATE,
 					 &enc_prm);
 	}
+	if (mtk_buf->param_change & MTK_ENCODE_PARAM_SEC_ENCODE) {
+		enc_prm.svp_mode = mtk_buf->enc_params.svp_mode;
+		mtk_v4l2_debug(0, "[%d] change param svp=%d",
+				ctx->id,
+				enc_prm.svp_mode);
+		ret |= venc_if_set_param(ctx,
+					 VENC_SET_PARAM_SEC_MODE,
+					 &enc_prm);
+	}
 	if (!ret && mtk_buf->param_change & MTK_ENCODE_PARAM_FRAMERATE) {
 		enc_prm.frm_rate = mtk_buf->enc_params.framerate_num /
 				   mtk_buf->enc_params.framerate_denom;
@@ -2144,6 +2155,8 @@ int mtk_vcodec_enc_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 
 	v4l2_ctrl_new_std(handler, ops, V4L2_CID_MPEG_VIDEO_BITRATE,
 			  1, 400000000, 1, 20000000);
+	v4l2_ctrl_new_std(handler, ops, V4L2_CID_MPEG_MTK_SEC_ENCODE,
+			0, 2, 1, 0);
 	v4l2_ctrl_new_std(handler, ops, V4L2_CID_MPEG_VIDEO_B_FRAMES,
 			  0, 2, 1, 0);
 	v4l2_ctrl_new_std(handler, ops, V4L2_CID_MPEG_VIDEO_FRAME_RC_ENABLE,
@@ -2172,8 +2185,8 @@ int mtk_vcodec_enc_ctrls_setup(struct mtk_vcodec_ctx *ctx)
 		V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE,
 		0, V4L2_MPEG_VIDEO_MPEG4_PROFILE_SIMPLE);
 	v4l2_ctrl_new_std_menu(handler, ops, V4L2_CID_MPEG_VIDEO_H264_LEVEL,
-		V4L2_MPEG_VIDEO_H264_LEVEL_5_1,
-		0, V4L2_MPEG_VIDEO_H264_LEVEL_4_0);
+		V4L2_MPEG_VIDEO_H264_LEVEL_4_2,
+		0, V4L2_MPEG_VIDEO_H264_LEVEL_1_0);
 	v4l2_ctrl_new_std_menu(handler, ops,
 		V4L2_CID_MPEG_VIDEO_H265_TIER_LEVEL,
 		V4L2_MPEG_VIDEO_H265_LEVEL_MAIN_TIER_LEVEL_4,
