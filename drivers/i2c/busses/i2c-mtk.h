@@ -71,6 +71,10 @@
 #define I2C_FS_START_CON			0x1800
 #define I2C_TIME_CLR_VALUE			0x0000
 #define I2C_TIME_DEFAULT_VALUE		0x0003
+#ifdef VENDOR_EDIT
+/*lizhijie@BSP.CHG.Basic lzj. 2019/11/16 add for i2c high speed*/
+#define I2C_HS_SPEED                   0x0080
+#endif
 #define I2C_TIMEOUT_EN				0x0001
 #define I2C_ROLLBACK				0x0001
 #define I2C_SHADOW_REG_MODE		0x0002
@@ -398,6 +402,10 @@ struct mt_i2c {
 	struct mt_i2c_ext ext_data;
 	const struct mtk_i2c_compatible *dev_comp;
 	struct i2c_info rec_info[I2C_RECORD_LEN];
+#ifdef VENDOR_EDIT
+/*Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/07/01, sjc Add for zhongying fg ZY0602*/
+		struct pinctrl *pctrl;
+#endif /*VENDOR_EDIT*/
 };
 
 #if defined(CONFIG_MTK_FPGA) || defined(CONFIG_FPGA_EARLY_PORTING)
