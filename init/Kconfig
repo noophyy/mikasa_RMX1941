@@ -1562,7 +1562,7 @@ endif
 
 choice
 	prompt "Compiler optimization level"
-	default CC_OPTIMIZE_FOR_SIZE if MTK_ENABLE_GMO
+	default CONFIG_CC_OPTIMIZE_FOR_PERFORMANCE
 
 config CC_OPTIMIZE_FOR_PERFORMANCE
 	bool "Optimize for performance"
@@ -1989,8 +1989,27 @@ config VM_EVENT_COUNTERS
 	  on EXPERT systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
 
+#ifndef VENDOR_EDIT
+# /* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, Support slab objects
+#  * statistics whlie not open SLUB_DEBUG*/
+#config SLUB_DEBUG
+#	default n
+#	bool "Enable SLUB debugging support" if EXPERT
+#	depends on SLUB && SYSFS
+#	help
+#	  SLUB has extensive debug support features. Disabling these can
+#	  result in significant savings in code size. This also disables
+#	  SLUB sysfs support. /sys/slab will not exist and there will be
+#	  no support for cache validation etc.
+#else
 config SLUB_DEBUG
-	default y
+	#ifdef VENDOR_EDIT
+	#Wen.Luo@Bsp.Kernel.Stability, 2018/12/05, Add for aging test, slub debug config
+	default y if OPPO_SLUB_TEST = "true"
+	default n
+	#else
+	#default y
+	#endif
 	bool "Enable SLUB debugging support" if EXPERT
 	depends on SLUB && SYSFS
 	depends on !MTK_ENABLE_AGO
@@ -1999,6 +2018,25 @@ config SLUB_DEBUG
 	  result in significant savings in code size. This also disables
 	  SLUB sysfs support. /sys/slab will not exist and there will be
 	  no support for cache validation etc.
+#ifdef VENDOR_EDIT
+#Wen.Luo@Bsp.Kernel.Stability, 2018/12/05, Add for aging test
+config OPPO_AGING_TEST
+	string
+	option env="OPPO_AGING_TEST"
+#endif
+#ifdef VENDOR_EDIT
+# /* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, Support slab objects
+#  * statistics whlie not open SLUB_DEBUG
+#  */
+config SLUB_STAT_DEBUG
+	bool "Enable Collect SLUB debug information statisticst" if EXPERT
+	default n
+	depends on !SLUB_DEBUG
+	help
+	  If open SLUB_DEBUG, there are more code and will degradte perforance.
+	  To get more slab details, such as the total objects, this option is
+	  to collect slab info on SLUB_DEBUG is closed.
+#endif /* VENDOR_EDIT */
 
 config SLUB_MEMCG_SYSFS_ON
 	default n
@@ -2146,7 +2184,13 @@ config SLABINFO
 	bool
 	depends on PROC_FS
 	depends on !MTK_ENABLE_GMO
-	depends on SLAB || SLUB_DEBUG
+#ifndef VENDOR_EDIT
+# /* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLAB_STAT_DEBUG is
+#  * is enabled, /proc/slabinfo is created for getting more slab details.
+#	depends on SLAB || SLUB_DEBUG
+#else
+	depends on SLAB || SLUB_DEBUG || SLUB_STAT_DEBUG
+#endif
 	default y
 
 config RT_MUTEXES
