@@ -403,6 +403,70 @@ KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 GCC_PLUGINS_CFLAGS :=
 CLANG_FLAGS :=
 
+#ifdef VENDOR_EDIT
+#Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/05/09, sjc Add for 806 high/low temp aging test
+ifeq ($(OPPO_HIGH_TEMP_VERSION),true)
+KBUILD_CFLAGS += -DCONFIG_HIGH_TEMP_VERSION
+KBUILD_CPPFLAGS += -DCONFIG_HIGH_TEMP_VERSION
+endif
+#endif /* VENDOR_EDIT */
+
+#ifdef  VENDOR_EDIT
+#LiPing-m@PSW.MM.Display.LCD.Machine, 2017/11/03, Add for VENDOR_EDIT macro in kernel
+KBUILD_CFLAGS +=   -DVENDOR_EDIT
+KBUILD_CPPFLAGS += -DVENDOR_EDIT
+CFLAGS_KERNEL +=   -DVENDOR_EDIT
+CFLAGS_MODULE +=   -DVENDOR_EDIT
+#endif /* VENDOR_EDIT */
+
+#ifdef ODM_HQ_EDIT
+#Qiuyu.Fan 2018/10/03,Add for ODM_HQ_EDIT maco in kernel
+KBUILD_CFLAGS   += -DODM_HQ_EDIT
+KBUILD_CPPFLAGS += -DODM_HQ_EDIT
+CFLAGS_KERNEL   += -DODM_HQ_EDIT
+CFLAGS_MODULE   += -DODM_HQ_EDIT
+export ODM_HQ_EDIT=yes
+#endif
+
+#ifdef VENDOR_EDIT
+#zhouhengguo@PSW.BSP.Kernel.Stablity, 2019/11/05, add daily build
+ifneq ($(TARGET_BUILD_VARIANT), user)
+KBUILD_CFLAGS   += -DOPPO_TARGET_BUILD_DAILY
+KBUILD_CPPFLAGS += -DOPPO_TARGET_BUILD_DAILY
+CFLAGS_KERNEL   += -DOPPO_TARGET_BUILD_DAILY
+CFLAGS_MODULE   += -DOPPO_TARGET_BUILD_DAILY
+endif
+#endif /*VENDOR_EDIT*/
+
+#ifdef VENDOR_EDIT
+#ye.zhang@Sensor.config,2016-09-09, add for CTSI support external storage or not
+$(info @@@@@@@@@@@ OPPO_BUILD_CUSTOMIZE is $(OPPO_BUILD_CUSTOMIZE))
+KBUILD_CFLAGS += -DMOUNT_EXSTORAGE_IF
+KBUILD_CPPFLAGS += -DMOUNT_EXSTORAGE_IF
+CFLAGS_KERNEL += -DMOUNT_EXSTORAGE_IF
+CFLAGS_MODULE += -DMOUNT_EXSTORAGE_IF
+#endif /* VENDOR_EDIT */
+
+#ifdef VENDOR_EDIT
+#Liu.Yong@RM.CM.BSP, 2016-05-18, add for recogonizing user build
+ifeq ($(TARGET_BUILD_VARIANT),user)
+KBUILD_CFLAGS += -DCONFIG_OPPO_REALEASE_BUILD
+KBUILD_CPPFLAGS += -DCONFIG_OPPO_REALEASE_BUILD
+KBUILD_CFLAGS += -DOPPO_RELEASE_FLAG
+KBUILD_CPPFLAGS += -DOPPO_RELEASE_FLAG
+endif
+ifneq ($(filter cmcctest cmccfield allnetcttest,$(NET_BUILD_TYPE)),)
+KBUILD_CFLAGS += -DOPPO_RELEASE_FLAG
+KBUILD_CPPFLAGS += -DOPPO_RELEASE_FLAG
+endif
+#endif /* VENDOR_EDIT */
+#Ling.Guo@PSW.MM.Display.LCD, 2018/01/24, Add for cmcc test.
+ifneq ($(filter allnetcmccfield allnetcmcctest allnetctfield allnetcttest allnetcutest,$(NET_BUILD_TYPE)),)
+KBUILD_CFLAGS += -DOPPO_CTTEST_FLAG
+KBUILD_CPPFLAGS += -DOPPO_CTTEST_FLAG
+endif
+#endif /* VENDOR_EDIT */
+
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
 KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
 KERNELVERSION = $(VERSION)$(if $(PATCHLEVEL),.$(PATCHLEVEL)$(if $(SUBLEVEL),.$(SUBLEVEL)))$(EXTRAVERSION)

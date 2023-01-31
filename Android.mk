@@ -15,6 +15,44 @@ ifeq ($(notdir $(LOCAL_PATH)),$(strip $(LINUX_KERNEL_VERSION)))
 ifneq ($(strip $(TARGET_NO_KERNEL)),true)
 include $(LOCAL_PATH)/kenv.mk
 
+#ifdef VENDOR_EDIT
+#Yongpei.Yao@PSW.MM.Audio.Machine, 2019/11/4, add for 19551 fm config
+ifneq ($(filter oppo6779_18073 oppo6779_18593, $(OPPO_TARGET_DEVICE)),)
+$(shell sed -i 's/CONFIG_MTK_FM_CHIP=*.*/CONFIG_MTK_FM_CHIP=\"MT6635_FM\"/g' $(KERNEL_CONFIG_FILE))
+else
+$(shell sed -i 's/CONFIG_MTK_FM_CHIP=*.*/CONFIG_MTK_FM_CHIP=\"MT6631_FM\"/g' $(KERNEL_CONFIG_FILE))
+endif
+#endif VENDOR_EDIT
+
+#ifdef VENDOR_EDIT
+#Zhijun.ye@PSW.MM.Display.LCD.Stability, 2019/11/16, add for 19301 lcm config
+ifneq ($(filter oppo6779_18073 oppo6779_18593 oppo6779_19301 oppo6779_19011, $(OPPO_TARGET_DEVICE)),)
+$(shell sed -i 's/CONFIG_LCM_HEIGHT=*.*/CONFIG_LCM_HEIGHT=\"2340\"/g' $(KERNEL_CONFIG_FILE))
+else
+ifneq ($(filter oppo6762_18540, $(OPPO_TARGET_DEVICE)),)
+$(shell sed -i 's/CONFIG_LCM_HEIGHT=*.*/CONFIG_LCM_HEIGHT=\"1560\"/g' $(KERNEL_CONFIG_FILE))
+else
+$(shell sed -i 's/CONFIG_LCM_HEIGHT=*.*/CONFIG_LCM_HEIGHT=\"2400\"/g' $(KERNEL_CONFIG_FILE))
+endif
+endif
+#endif VENDOR_EDIT
+
+#ifdef VENDOR_EDIT
+#hongxiang.jin@PSW.MM.Audio.Machine, 2019/11/12, add for 18073 soundtrigger config
+ifneq ($(filter oppo6779_18073, $(OPPO_TARGET_DEVICE)),)
+$(shell sed -i 's/# CONFIG_SND_SOC_DBMDX is not set/CONFIG_SND_SOC_DBMDX=y/g' $(KERNEL_CONFIG_FILE))
+else
+$(shell sed -i 's/CONFIG_SND_SOC_DBMDX=y/# CONFIG_SND_SOC_DBMDX is not set/g' $(KERNEL_CONFIG_FILE))
+endif
+#endif VENDOR_EDIT
+
+#ifdef VENDOR_EDIT
+#weiriqin@camera,driver, 2019/11/18, add for 18073 camera config
+ifneq ($(filter oppo6779_18073 oppo6779_18593, $(OPPO_TARGET_DEVICE)),)
+$(shell sed -i 's/CONFIG_CUSTOM_KERNEL_IMGSENSOR=*.*/CONFIG_CUSTOM_KERNEL_IMGSENSOR=\"imx586_mipi_raw s5kgd1sp_mipi_raw gc5035_mipi_raw\"/g' $(KERNEL_CONFIG_FILE))
+endif
+#endif
+
 ifeq ($(wildcard $(TARGET_PREBUILT_KERNEL)),)
 KERNEL_MAKE_DEPENDENCIES := $(shell find $(KERNEL_DIR) -name .git -prune -o -type f | sort)
 KERNEL_MAKE_DEPENDENCIES := $(filter-out %/.git %/.gitignore %/.gitattributes,$(KERNEL_MAKE_DEPENDENCIES))
