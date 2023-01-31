@@ -427,7 +427,6 @@ static int string_hash_put(struct string_struct *string)
 	if (!string->ref) {
 		hlist_del(&string->list);
 		kfree(string);
-		string = NULL;
 	}
 
 	spin_unlock(&ion_str_hash_lock);
