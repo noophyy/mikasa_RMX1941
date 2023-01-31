@@ -29,6 +29,14 @@
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/delay.h>
+#ifdef ODM_HQ_EDIT
+/*Wenchao.Du@BSP.Kernel.Driver 2019/01/17 disable uart for user*/
+#ifdef OPPO_RELEASE_FLAG
+#include <linux/pinctrl/devinfo.h>
+#include <linux/pinctrl/consumer.h>
+#include <mt-plat/mtk_boot_common.h>
+#endif
+#endif /*ODM_HQ_EIDT*/
 
 #include "8250.h"
 
@@ -140,6 +148,15 @@ enum {
 	MTK_UART_FC_SW,		/*MTK SW Flow Control, differs from Linux Flow Control */
 	MTK_UART_FC_HW,		/*HW Flow Control */
 };
+
+#ifdef ODM_HQ_EDIT
+/*Wenchao.Du@BSP.Kernel.Driver 2019/01/17 disable uart for user*/
+#ifdef OPPO_RELEASE_FLAG
+static struct pinctrl * pinctrl;
+static struct pinctrl_state * pinctrl_rx_low;
+static struct pinctrl_state * pinctrl_tx_low;
+#endif
+#endif /*ODM_HQ_EIDT*/
 
 #ifdef CONFIG_SERIAL_8250_DMA
 static void mtk8250_rx_dma(struct uart_8250_port *up);
@@ -572,6 +589,35 @@ static int mtk8250_probe_of(struct platform_device *pdev, struct uart_port *p,
 }
 #endif
 
+#ifdef ODM_HQ_EDIT
+/*Wenchao.Du@BSP.Kernel.Driver 2019/01/17 disable uart for user*/
+#ifdef OPPO_RELEASE_FLAG
+static int one_times = 1;
+static int disable_uart(struct device *dev){
+	pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(pinctrl)){
+		pr_err("uart---pinctrl fail\n");
+		return -1;
+	}
+	pinctrl_rx_low = pinctrl_lookup_state(pinctrl,"state_uart0_rx_output0");
+	if (IS_ERR(pinctrl_rx_low)){
+		pr_err("uart---pinctrl_rx_init fail\n");
+		return -1;
+	}
+	pinctrl_tx_low = pinctrl_lookup_state(pinctrl,"state_uart0_tx_output0");
+	if (IS_ERR(pinctrl_tx_low)){
+		pr_err("uart---pinctrl_tx_init fail\n");
+		return -1;
+	}
+	if((FACTORY_BOOT != get_boot_mode()) && (META_BOOT != get_boot_mode())){
+		pinctrl_select_state(pinctrl,pinctrl_rx_low);
+		pinctrl_select_state(pinctrl,pinctrl_tx_low);
+	}
+	return 0;
+}
+#endif
+#endif /*ODM_HQ_EDIT*/
+
 static int mtk8250_probe(struct platform_device *pdev)
 {
 	struct uart_8250_port uart = {};
@@ -579,6 +625,17 @@ static int mtk8250_probe(struct platform_device *pdev)
 	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	struct mtk8250_data *data;
 	int err;
+
+#ifdef ODM_HQ_EDIT
+/*Wenchao.Du@BSP.Kernel.Driver 2019/01/17 disable uart for user*/
+#ifdef OPPO_RELEASE_FLAG
+	if(one_times && disable_uart(&pdev->dev)){
+		pr_err("uart---disable uart fail\n");
+		one_times = 0;
+		return -EINVAL;
+	}
+#endif
+#endif /*ODM_HQ_EDIT*/
 
 	if (!regs || !irq) {
 		dev_err(&pdev->dev, "no registers/irq defined\n");

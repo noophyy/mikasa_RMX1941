@@ -159,8 +159,7 @@ static int store_utf8(u16 c, char *p)
  *	The entire selection process is managed under the console_lock. It's
  *	 a lot under the lock but its hardly a performance path
  */
-static int __set_selection(const struct tiocl_selection __user *sel,
-	struct tty_struct *tty)
+int set_selection(const struct tiocl_selection __user *sel, struct tty_struct *tty)
 {
 	struct vc_data *vc = vc_cons[fg_console].d;
 	int sel_mode, new_sel_start, new_sel_end, spc;
@@ -207,6 +206,7 @@ static int __set_selection(const struct tiocl_selection __user *sel,
 		pe = tmp;
 	}
 
+	mutex_lock(&sel_lock);
 	if (sel_cons != vc_cons[fg_console].d) {
 		clear_selection();
 		sel_cons = vc_cons[fg_console].d;
@@ -252,9 +252,10 @@ static int __set_selection(const struct tiocl_selection __user *sel,
 			break;
 		case TIOCL_SELPOINTER:
 			highlight_pointer(pe);
-			return 0;
+			goto unlock;
 		default:
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 	}
 
 	/* remove the pointer */
@@ -276,7 +277,7 @@ static int __set_selection(const struct tiocl_selection __user *sel,
 	else if (new_sel_start == sel_start)
 	{
 		if (new_sel_end == sel_end)	/* no action required */
-			return 0;
+			goto unlock;
 		else if (new_sel_end > sel_end)	/* extend to right */
 			highlight(sel_end + 2, new_sel_end);
 		else				/* contract from right */
@@ -303,7 +304,8 @@ static int __set_selection(const struct tiocl_selection __user *sel,
 	if (!bp) {
 		printk(KERN_WARNING "selection: kmalloc() failed\n");
 		clear_selection();
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto unlock;
 	}
 	kfree(sel_buffer);
 	sel_buffer = bp;
@@ -328,21 +330,8 @@ static int __set_selection(const struct tiocl_selection __user *sel,
 		}
 	}
 	sel_buffer_lth = bp - sel_buffer;
-
-	return ret;
-}
-
-int set_selection(const struct tiocl_selection __user *v,
-	struct tty_struct *tty)
-{
-	int ret;
-
-	mutex_lock(&sel_lock);
-	console_lock();
-	ret = __set_selection(v, tty);
-	console_unlock();
+unlock:
 	mutex_unlock(&sel_lock);
-
 	return ret;
 }
 
@@ -375,9 +364,7 @@ int paste_selection(struct tty_struct *tty)
 	while (sel_buffer && sel_buffer_lth > pasted) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_throttled(tty)) {
-			mutex_unlock(&sel_lock);
 			schedule();
-			mutex_lock(&sel_lock);
 			continue;
 		}
 		__set_current_state(TASK_RUNNING);

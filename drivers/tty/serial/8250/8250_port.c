@@ -2732,6 +2732,7 @@ static void
 serial8250_pm(struct uart_port *port, unsigned int state,
 	      unsigned int oldstate)
 {
+
 	if (port->pm)
 		port->pm(port, state, oldstate);
 	else
