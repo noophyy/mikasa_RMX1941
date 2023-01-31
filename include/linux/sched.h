@@ -1175,6 +1175,13 @@ static inline bool sched_boost(void)
 }
 #endif
 
+#ifdef VENDOR_EDIT
+extern int sched_get_updown_migrate(unsigned int *up_migrate,
+                        unsigned int *down_migrate);
+extern int sched_set_updown_migrate(unsigned int up_migrate,
+                        unsigned int down_migrate);
+#endif
+
 struct sched_group_energy {
 #ifdef CONFIG_MTK_SCHED_EAS_POWER_SUPPORT
 	idle_power_func idle_power;
@@ -1535,6 +1542,25 @@ struct sched_statistics {
 };
 #endif
 
+#ifdef VENDOR_EDIT
+#ifdef CONFIG_SMP
+//wangmengmeng@swdp.shanghai, 2019/6/20, export some symbol
+extern unsigned long sched_get_capacity_orig(int cpu);
+extern unsigned int sched_get_cpu_util(int cpu);
+#else
+//wangmengmeng@swdp.shanghai, 2019/6/20, export some symbol
+static inline unsigned long sched_get_capacity_orig(int cpu)
+{
+	return 0;
+}
+
+static inline unsigned int sched_get_cpu_util(int cpu)
+{
+	return 0;
+}
+#endif
+#endif
+
 #ifdef CONFIG_SCHED_WALT
 #define RAVG_HIST_SIZE_MAX  5
 
@@ -1718,6 +1744,16 @@ enum perf_event_task_context {
 	perf_sw_context,
 	perf_nr_task_contexts,
 };
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+/* Kui.Zhang@TEC.Kernel.Performance, 2019/03/04
+ * Record process reclaim infor
+ */
+union reclaim_limit {
+	unsigned long stop_jiffies;
+	unsigned long stop_scan_addr;
+};
+#endif
 
 /* Track pages that require TLB flushes */
 struct tlbflush_unmap_batch {
@@ -2274,6 +2310,12 @@ struct task_struct {
 	u64 stall_ratio;
 	u64 badness;
 #endif
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+	/* Kui.Zhang@TEC.Kernel.Performance, 2019/03/04
+	 * Record process reclaim infor
+	 */
+	union reclaim_limit reclaim;
+#endif
 
 /* CPU-specific state of this task */
 	struct thread_struct thread;
@@ -2583,6 +2625,16 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, 
 /*
  * Per process flags
  */
+#ifdef VENDOR_EDIT
+/* fanhui@PhoneSW.BSP, 2016/02/02, DeathHealer, set the task to be killed */
+#define PF_OPPO_KILLING	0x00000001
+#endif
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-12-25,
+ * flag that current task is process reclaimer
+ */
+#define PF_RECLAIM_SHRINK 0x00000002
+#endif
 #define PF_EXITING	0x00000004	/* getting shut down */
 #define PF_EXITPIDONE	0x00000008	/* pi exit done on shut down */
 #define PF_VCPU		0x00000010	/* I'm a virtual CPU */
@@ -2611,6 +2663,13 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, 
 #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
 #define PF_FREEZER_SKIP	0x40000000	/* Freezer should not count it as freezable */
 #define PF_SUSPEND_TASK 0x80000000      /* this thread called freeze_processes and should not be frozen */
+
+#if defined(VENDOR_EDIT) && defined(CONFIG_PROCESS_RECLAIM)
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-12-25,
+ * check current task is process reclaimer?
+ */
+#define current_is_reclaimer() (current->flags & PF_RECLAIM_SHRINK)
+#endif
 
 /*
  * Only the _current_ task can read/write to tsk->flags, but other
@@ -3374,6 +3433,41 @@ extern bool current_is_single_threaded(void);
 #define for_each_process_thread(p, t)	\
 	for_each_process(p) for_each_thread(p, t)
 
+#ifdef VENDOR_EDIT
+#ifdef CONFIG_OPPO_FG_OPT
+/* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-07-07, add fg process opt*/
+extern bool is_fg(int uid);
+static inline int current_is_fg(void)
+{
+	int cur_uid;
+	cur_uid = current_uid().val;
+	if (is_fg(cur_uid))
+		return 1;
+	return 0;
+}
+
+/* Kui.Zhang@PSW.BSP.Kernel.MM, 2018-12-25, check whether task is fg*/
+static inline int task_is_fg(struct task_struct *task)
+{
+	int task_uid;
+	task_uid = task_uid(task).val;
+	if (is_fg(task_uid))
+		return 1;
+	return 0;
+}
+#else
+static inline int current_is_fg(void)
+{
+	return 0;
+}
+
+static inline int task_is_fg(struct task_struct *task)
+{
+	return 0;
+}
+#endif /*CONFIG_OPPO_FG_OPT*/
+#endif /*VENDOR_EDIT*/
+
 static inline int get_nr_threads(struct task_struct *tsk)
 {
 	return tsk->signal->nr_threads;
@@ -3644,6 +3738,17 @@ static inline int fatal_signal_pending(struct task_struct *p)
 {
 	return signal_pending(p) && __fatal_signal_pending(p);
 }
+
+//#ifdef VENDOR_EDIT //fangpan@Swdp.shanghai,2015/11/12
+static inline int hung_long_and_fatal_signal_pending(struct task_struct *p)
+{
+#ifdef CONFIG_DETECT_HUNG_TASK
+	return fatal_signal_pending(p) && (p->flags & PF_OPPO_KILLING);
+#else
+	return 0;
+#endif
+}
+//#endif
 
 static inline int signal_pending_state(long state, struct task_struct *p)
 {
