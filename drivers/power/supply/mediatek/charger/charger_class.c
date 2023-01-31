@@ -135,6 +135,40 @@ int charger_dev_get_min_charging_current(struct charger_device *chg_dev,
 }
 EXPORT_SYMBOL(charger_dev_get_min_charging_current);
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add enable ship mode API*/
+int charger_dev_enable_ship(struct charger_device *chg_dev)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->enable_ship)
+		return chg_dev->ops->enable_ship(chg_dev);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_enable_ship);
+
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add get charger type API*/
+int charger_dev_get_charger_type(struct charger_device *chg_dev, u32 *charger_type)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->get_charger_type)
+		return chg_dev->ops->get_charger_type(chg_dev,charger_type);
+
+	return -ENOTSUPP;
+}
+EXPORT_SYMBOL(charger_dev_get_charger_type);
+
+/* Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add rechager API*/
+int charger_dev_recharger(struct charger_device *chg_dev, bool flag)
+{
+	if (chg_dev != NULL && chg_dev->ops != NULL &&
+	    chg_dev->ops->get_charger_type)
+		return chg_dev->ops->recharger(chg_dev, flag);
+	return -ENOTSUPP;
+}
+
+#endif /*ODM_HQ_EDIT*/
+
 int charger_dev_enable_chip(struct charger_device *chg_dev, bool en)
 {
 	if (chg_dev != NULL && chg_dev->ops != NULL &&
@@ -503,8 +537,18 @@ int charger_dev_enable_chg_type_det(struct charger_device *chg_dev, bool en)
 }
 EXPORT_SYMBOL(charger_dev_enable_chg_type_det);
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for OTG status file node*/
+bool otg_online = false;
+#endif /*ODM_HQ_EDIT*/
 int charger_dev_enable_otg(struct charger_device *chg_dev, bool en)
 {
+
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for OTG status file node*/
+	otg_online = en;
+#endif /*ODM_HQ_EDIT*/
+
 	if (chg_dev != NULL && chg_dev->ops != NULL && chg_dev->ops->enable_otg)
 		return chg_dev->ops->enable_otg(chg_dev, en);
 

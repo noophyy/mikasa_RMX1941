@@ -20,7 +20,6 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/alarmtimer.h>
-#include <linux/suspend.h>
 
 #include <mt-plat/charger_type.h>
 #include <mt-plat/mtk_battery.h>
@@ -144,6 +143,11 @@ int disable_shutdown_cond(int shutdown_cond)
 	return 0;
 }
 
+#if 0//def VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/10/16, sjc add for sdc.lock null pointer */
+extern int oppo_is_vooc_project(void);
+#endif /*VENDOR_EDIT*/
+
 int set_shutdown_cond(int shutdown_cond)
 {
 	int now_current;
@@ -173,6 +177,14 @@ int set_shutdown_cond(int shutdown_cond)
 		now_is_kpoc, now_current, now_is_charging,
 		shutdown_cond_flag, vbat);
 
+#if 0//def VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/10/16, sjc add for sdc.lock null pointer */
+	if (oppo_is_vooc_project() == 1) {
+		pr_err("%s: vooc_project, return directly\n", __func__);
+		return 0;
+	}
+#endif /*VENDOR_EDIT*/
+
 	if (shutdown_cond_flag == 1)
 		return 0;
 
@@ -181,6 +193,13 @@ int set_shutdown_cond(int shutdown_cond)
 
 	if (shutdown_cond_flag == 3 && shutdown_cond != DLPT_SHUTDOWN)
 		return 0;
+#if 0//def VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/10/16, sjc Add for remove dlpt shutdown */
+	if (shutdown_cond == DLPT_SHUTDOWN) {
+		bm_err("[%s], DLPT_SHUTDOWN, return directly\n", __func__);
+		return 0;
+	}
+#endif /* VENDOR_EDIT */
 
 	switch (shutdown_cond) {
 	case OVERHEAT:
@@ -188,9 +207,7 @@ int set_shutdown_cond(int shutdown_cond)
 		sdc.shutdown_status.is_overheat = true;
 		mutex_unlock(&sdc.lock);
 		bm_err("[%s]OVERHEAT shutdown!\n", __func__);
-		mutex_lock(&pm_mutex);
 		kernel_power_off();
-		mutex_unlock(&pm_mutex);
 		break;
 	case SOC_ZERO_PERCENT:
 		if (sdc.shutdown_status.is_soc_zero_percent != true) {
@@ -307,9 +324,10 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 			polling++;
 			if (duraction.tv_sec >= SHUTDOWN_TIME) {
 				bm_err("soc zero shutdown\n");
-				mutex_lock(&pm_mutex);
+#ifndef ODM_HQ_EDIT
+/*Hanxing.Duan@ODM.HQ.BSP.CHG.Basic 2019.01.24 Delete dlpt shutdown*/
 				kernel_power_off();
-				mutex_unlock(&pm_mutex);
+#endif /*ODM_HQ_EDIT*/
 				return next_waketime(polling);
 
 			}
@@ -331,9 +349,10 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 			polling++;
 			if (duraction.tv_sec >= SHUTDOWN_TIME) {
 				bm_err("uisoc one percent shutdown\n");
-				mutex_lock(&pm_mutex);
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 Delete dlpt shutdown*/
 				kernel_power_off();
-				mutex_unlock(&pm_mutex);
+#endif /*ODM_HQ_EDIT*/
 				return next_waketime(polling);
 			}
 		} else if (now_current > 0 && current_soc > 0) {
@@ -420,9 +439,10 @@ static int shutdown_event_handler(struct shutdown_controller *sdd)
 				if (duraction.tv_sec >= SHUTDOWN_TIME) {
 					bm_err("low bat shutdown, over %d second\n",
 						SHUTDOWN_TIME);
-					mutex_lock(&pm_mutex);
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 Delete dlpt shutdown*/
 					kernel_power_off();
-					mutex_unlock(&pm_mutex);
+#endif /*ODM_HQ_EDIT*/
 					return next_waketime(polling);
 				}
 			}
@@ -508,9 +528,10 @@ static int power_misc_routine_thread(void *arg)
 			sdd->overheat = false;
 			bm_err("%s battery overheat~ power off\n",
 				__func__);
-			mutex_lock(&pm_mutex);
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 remove kernel power off in hig temp*/
 			kernel_power_off();
-			mutex_unlock(&pm_mutex);
+#endif /*ODM_HQ_EDIT*/
 			return 1;
 		}
 	}
@@ -535,7 +556,6 @@ int mtk_power_misc_psy_event(
 				bm_err(
 					"battery temperature >= %d,shutdown",
 					tmp);
-
 				wake_up_overheat(&sdc);
 			}
 		}
@@ -553,7 +573,10 @@ void mtk_power_misc_init(struct platform_device *pdev)
 
 	kthread_run(power_misc_routine_thread, &sdc, "power_misc_thread");
 
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/12/18, sjc Delete for charging */
 	sdc.psy_nb.notifier_call = mtk_power_misc_psy_event;
 	power_supply_reg_notifier(&sdc.psy_nb);
+#endif /*VENDOR_EDIT*/
 }
 

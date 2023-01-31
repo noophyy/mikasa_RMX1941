@@ -53,6 +53,7 @@
 #include <linux/of_fdt.h>	/*of_dt API*/
 #include <linux/of.h>
 #include <linux/vmalloc.h>
+#include <linux/syscalls.h>
 #include <linux/math64.h>
 #include <linux/alarmtimer.h>
 
@@ -81,13 +82,20 @@
 #include "simulator_kernel.h"
 #endif
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for battery name file node */
+#include "mtk_auxadc.h"
+#endif /*ODM_HQ_EDIT*/
 
 
 /* ============================================================ */
 /* global variable */
 /* ============================================================ */
 struct mtk_battery gm;
-
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for gauge*/
+int init_uisoc_done = 0;
+#endif /*ODM_HQ_EDIT*/
 /* ============================================================ */
 /* gauge hal interface */
 /* ============================================================ */
@@ -357,10 +365,18 @@ bool __attribute__ ((weak)) mt_usb_is_device(void)
 /* custom setting */
 /* ============================================================ */
 #ifdef MTK_GET_BATTERY_ID_BY_AUXADC
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for battery name file node */
+char battery_name[20];
+#endif /*ODM_HQ_EDIT*/
+
 void fgauge_get_profile_id(void)
 {
 	int id_volt = 0;
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 remove for old read battery id*/
 	int id = 0;
+#endif /*ODM_HQ_EDIT*/
 	int ret = 0;
 
 	ret = IMM_GetOneChannelValue_Cali(BATTERY_ID_CHANNEL_NUM, &id_volt);
@@ -368,7 +384,8 @@ void fgauge_get_profile_id(void)
 		bm_debug("[%s]id_volt read fail\n", __func__);
 	else
 		bm_debug("[%s]id_volt = %d\n", __func__, id_volt);
-
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 remove MTK check battery id*/
 	if ((sizeof(g_battery_id_voltage) /
 		sizeof(int)) != TOTAL_BATTERY_NUMBER) {
 		bm_debug("[%s]error! voltage range incorrect!\n",
@@ -384,6 +401,30 @@ void fgauge_get_profile_id(void)
 			gm.battery_id = TOTAL_BATTERY_NUMBER - 1;
 		}
 	}
+#endif
+
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for battery name and check battery id */
+	if ((id_volt > SDI_BATTERY_VOLTAGE_MIN) &&  (id_volt < SDI_BATTERY_VOLTAGE_MAX) )
+	{
+		gm.battery_id =1;
+		strcpy(battery_name, "SDI");
+		pr_err("battery id SDI\n");
+	}
+	else if ((id_volt > ATL_BATTERY_VOLTAGE_MIN) && (id_volt < ATL_BATTERY_VOLTAGE_MAX))
+	{
+
+		gm.battery_id =0;
+		strcpy(battery_name, "ATL");
+		pr_err("battery id ATL\n");
+	}
+	else
+	{
+		gm.battery_id =2;
+		strcpy(battery_name, "Unknown");
+		pr_err("battery id unknown\n");
+	}
+#endif /*ODM_HQ_EDIT*/
 
 	bm_debug("[%s]Battery id (%d)\n",
 		__func__,
@@ -538,6 +579,7 @@ void fg_custom_init_from_header(void)
 	fg_cust_data.power_on_car_chr = POWER_ON_CAR_CHR;
 	fg_cust_data.power_on_car_nochr = POWER_ON_CAR_NOCHR;
 	fg_cust_data.shutdown_car_ratio = SHUTDOWN_CAR_RATIO;
+	fg_cust_data.min_uisoc_at_kpoc = MIN_UISOC_AT_KPOC;
 
 	/* ZCV update */
 	fg_cust_data.zcv_suspend_time = ZCV_SUSPEND_TIME;
@@ -1064,6 +1106,14 @@ void fg_custom_init_from_dts(struct platform_device *dev)
 		&(fg_cust_data.shutdown_gauge1_vbat_en), 1);
 	fg_read_dts_val(np, "SHUTDOWN_GAUGE1_VBAT",
 		&(fg_cust_data.shutdown_gauge1_vbat), 1);
+	fg_read_dts_val(np, "POWER_ON_CAR_CHR",
+		&(fg_cust_data.power_on_car_chr), 1);
+	fg_read_dts_val(np, "POWER_ON_CAR_NOCHR",
+		&(fg_cust_data.power_on_car_nochr), 1);
+	fg_read_dts_val(np, "SHUTDOWN_CAR_RATIO",
+		&(fg_cust_data.shutdown_car_ratio), 1);
+	fg_read_dts_val(np, "MIN_UISOC_AT_KPOC",
+		&(fg_cust_data.min_uisoc_at_kpoc), 1);
 
 	/* ZCV update */
 	fg_read_dts_val(np, "ZCV_SUSPEND_TIME",
@@ -1092,6 +1142,12 @@ void fg_custom_init_from_dts(struct platform_device *dev)
 		&(fg_cust_data.vbat_oldocv_diff), 1);
 	fg_read_dts_val(np, "SWOCV_OLDOCV_DIFF_EMB",
 		&(fg_cust_data.swocv_oldocv_diff_emb), 1);
+	fg_read_dts_val(np, "VIR_OLDOCV_DIFF_EMB",
+		&(fg_cust_data.vir_oldocv_diff_emb), 1);
+	fg_read_dts_val(np, "VIR_OLDOCV_DIFF_EMB_LT",
+		&(fg_cust_data.vir_oldocv_diff_emb_lt), 1);
+	fg_read_dts_val(np, "VIR_OLDOCV_DIFF_EMB_TMP",
+		&(fg_cust_data.vir_oldocv_diff_emb_tmp), 1);
 
 	fg_read_dts_val(np, "PMIC_SHUTDOWN_TIME",
 		&(fg_cust_data.pmic_shutdown_time), UNIT_TRANS_60);
@@ -1112,6 +1168,9 @@ void fg_custom_init_from_dts(struct platform_device *dev)
 	fg_read_dts_val(np, "PSEUDO1_SEL", &(fg_cust_data.pseudo1_sel), 1);
 
 	fg_read_dts_val(np, "D0_SEL", &(fg_cust_data.d0_sel), 1);
+	fg_read_dts_val(np, "DLPT_UI_REMAP_EN",
+		&(fg_cust_data.dlpt_ui_remap_en), 1);
+
 	fg_read_dts_val(np, "AGING_SEL", &(fg_cust_data.aging_sel), 1);
 	fg_read_dts_val(np, "BAT_PAR_I", &(fg_cust_data.bat_par_i), 1);
 	fg_read_dts_val(np, "RECORD_LOG", &(fg_cust_data.record_log), 1);
@@ -1618,6 +1677,15 @@ void fg_nafg_monitor(void)
 				FG_INTR_KERNEL_CMD,
 				FG_KERNEL_CMD_DISABLE_NAFG,
 				true);
+
+			bm_err("[fg_nafg_monitor]before restart fuelgauge pid:%d\n",
+				gm.g_fgd_pid);
+
+			gm.old_pid = gm.g_fgd_pid;
+			sys_kill(gm.g_fgd_pid, SIGKILL);
+			gm.force_restart_daemon++;
+			bm_err("[fg_nafg_monitor]after restart fuelgauged,%d\n",
+				gm.force_restart_daemon);
 		}
 	}
 	bm_debug("[%s]time:%d nafg_cnt:%d, now:%d, last_t:%d\n",
@@ -2375,6 +2443,7 @@ void fg_drv_update_hw_status(void)
 int battery_update_routine(void *x)
 {
 	battery_update_psd(&battery_main);
+
 	while (1) {
 		wait_event(gm.wait_que,
 			(gm.fg_update_flag > 0)
@@ -3784,8 +3853,13 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 	{
 		int daemon_ui_soc;
 		int old_uisoc;
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add get monitic rtc soc*/
+		int rtc_soc;
+		struct timespec now_time;
+#else /*ODM_HQ_EDIT*/
 		struct timespec now_time, diff;
-
+#endif /*ODM_HQ_EDIT*/
 		memcpy(&daemon_ui_soc, &msg->fgd_data[0],
 			sizeof(daemon_ui_soc));
 
@@ -3802,7 +3876,25 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 			gm.ui_soc = 50;
 		else
 			gm.ui_soc = (daemon_ui_soc + 50) / 100;
-
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 delet for mtk init soc*/
+		get_monotonic_boottime(&now_time);
+		gm.uisoc_oldtime = now_time;
+		if (init_uisoc_done == 0)
+		{
+			gauge_dev_get_monitic_rtc_ui_soc(gm.gdev, &rtc_soc);
+			bm_err("[fg_read] GET RTC MONITIC SOC = %d GM.UISOC = %d \n",rtc_soc ,gm.ui_soc);
+			if (rtc_soc > 0 && rtc_soc <= 100)
+			{
+				battery_main.BAT_CAPACITY = rtc_soc;
+				battery_update(&battery_main);
+			} else {
+				battery_main.BAT_CAPACITY = gm.ui_soc;
+				battery_update(&battery_main);
+			}
+			init_uisoc_done = 1;
+		}
+#else /*ODM_HQ_EDIT*/
 		/* when UISOC changes, check the diff time for smooth */
 		if (old_uisoc != gm.ui_soc) {
 			get_monotonic_boottime(&now_time);
@@ -3812,7 +3904,6 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 				daemon_ui_soc, gm.ui_soc,
 				gm.disableGM30, old_uisoc, diff.tv_sec);
 			gm.uisoc_oldtime = now_time;
-
 			battery_main.BAT_CAPACITY = gm.ui_soc;
 			battery_update(&battery_main);
 		} else {
@@ -3822,6 +3913,7 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 			battery_main.BAT_CAPACITY = gm.ui_soc;
 			battery_update(&battery_main);
 		}
+#endif /*ODM_HQ_EDIT*/
 	}
 	break;
 
@@ -4051,6 +4143,26 @@ void bmd_ctrl_cmd_from_user(void *nl_data, struct fgd_nl_msg_t *ret_msg)
 		bm_debug(
 			"[fr] FG_DAEMON_CMD_GET_RTC_INVALID = %d\n",
 			rtc_invalid);
+	}
+	break;
+
+	case FG_DAEMON_CMD_SET_AGING_INFO:
+	{
+		int aging_factor = 0, q_max_aging = 0, aging_type = 0;
+
+		aging_type = msg->fgd_subcmd_para1;
+
+		if (aging_type == 0) { /* aging factor */
+			memcpy(&aging_factor, &msg->fgd_data[0],
+				sizeof(aging_factor));
+		} else if (aging_type == 1) { /*q_max with aging*/
+			memcpy(&q_max_aging, &msg->fgd_data[0],
+				sizeof(q_max_aging));
+		}
+
+		bm_debug(
+			"[fg_res] FG_DAEMON_CMD_SET_AGING_INFO = %d %d %d\n",
+			aging_type, aging_factor, q_max_aging);
 	}
 	break;
 
@@ -4347,11 +4459,16 @@ void gm3_log_dump(bool force)
 	/* charger status need charger API */
 	/* CHR_ERR = -1 */
 	/* CHR_NORMAL = 0 */
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Delete for charging */
 	if (battery_main.BAT_STATUS ==
 		POWER_SUPPLY_STATUS_NOT_CHARGING)
 		gm.log.chr_status = -1;
 	else
 		gm.log.chr_status = 0;
+#else
+	gm.log.chr_status = 0;
+#endif /* VENDOR_EDIT */
 
 	car = gauge_get_coulomb();
 

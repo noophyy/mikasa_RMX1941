@@ -55,7 +55,11 @@ extern int mtk_pdc_setup(struct charger_manager *info, int idx);
 extern void mtk_pdc_plugout(struct charger_manager *info);
 extern void mtk_pdc_check_cable_impedance(struct charger_manager *info);
 extern void mtk_pdc_reset(struct charger_manager *info);
-extern bool mtk_pdc_check_leave(struct charger_manager *info);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/01/11, sjc Add for PD */
+extern int oppo_pdc_setup(int vbus_mv, int ibus_ma);
+extern int oppo_pdc_get(int *vbus_mv, int *ibus_ma);
+#endif
 
 #ifdef CONFIG_MTK_PUMP_EXPRESS_PLUS_SUPPORT
 

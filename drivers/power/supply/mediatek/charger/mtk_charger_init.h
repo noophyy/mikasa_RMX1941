@@ -36,6 +36,42 @@
 #define MAX_DMIVR_CHARGER_CURRENT 1400000 /* 1.4 A */
 
 /* sw jeita */
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add hight temp to power off*/
+#define CHG_PWROFF_HIGH_BATT_TEMP		   77
+#define CHG_PWROFF_EMERGENCY_BATT_TEMP      85
+
+/* Mengchun.Zhang@ODM.HQ.BSP.CHG.Basic 2018/12/27 Modify software jeita leval */
+#define JEITA_TEMP_T5_TO_T6_CC  1080000
+#define JEITA_TEMP_T4_TO_T5_CC  1980000
+#define JEITA_TEMP_T3_TO_T4_CC  1680000
+#define JEITA_TEMP_T2_TO_T3_CC  900000
+#define JEITA_TEMP_T1_TO_T2_CC  480000
+#define JEITA_TEMP_T0_TO_T1_CC  300000
+#define JEITA_TEMP_ABOVE_T7_CV	4080000
+#define JEITA_TEMP_T6_TO_T7_CV	4080000
+#define JEITA_TEMP_T5_TO_T6_CV	4368000
+#define JEITA_TEMP_T4_TO_T5_CV	4368000
+#define JEITA_TEMP_T3_TO_T4_CV	4368000
+#define JEITA_TEMP_T2_TO_T3_CV	4368000
+#define JEITA_TEMP_T1_TO_T2_CV	3984000
+#define JEITA_TEMP_T0_TO_T1_CV	3984000
+#define JEITA_TEMP_BELOW_T0_CV	3984000
+#define TEMP_T5_THRES  53
+#define TEMP_T5_THRES_MINUS_X_DEGREE 51
+#define TEMP_T4_THRES  45
+#define TEMP_T4_THRES_MINUS_X_DEGREE 43
+#define TEMP_T3_THRES  22
+#define TEMP_T3_THRES_MINUS_X_DEGREE 24
+#define TEMP_T2_THRES  12
+#define TEMP_T2_THRES_PLUS_X_DEGREE 7
+#define TEMP_T1_THRES  5
+#define TEMP_T1_THRES_PLUS_X_DEGREE 0
+#define TEMP_T0_THRES  0
+#define TEMP_T0_THRES_PLUS_X_DEGREE  2
+#define TEMP_NEG_3_THRES -2
+#define TEMP_NEG_20_THRES -20
+#else  /* ODM_HQ_EDIT */
 #define JEITA_TEMP_ABOVE_T4_CV	4240000
 #define JEITA_TEMP_T3_TO_T4_CV	4240000
 #define JEITA_TEMP_T2_TO_T3_CV	4340000
@@ -53,6 +89,7 @@
 #define TEMP_T0_THRES  0
 #define TEMP_T0_THRES_PLUS_X_DEGREE  0
 #define TEMP_NEG_10_THRES 0
+#endif  /* ODM_HQ_EDIT */
 
 /* Battery Temperature Protection */
 #define MIN_CHARGE_TEMP  0
@@ -93,8 +130,12 @@
 
 #define R_SENSE 56 /* mohm */
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 modify charger time out*/
+#define MAX_CHARGING_TIME (10*60*60) /* 10 hours */
+#else /*ODM_HQ_EDIT*/
 #define MAX_CHARGING_TIME (12 * 60 * 60) /* 12 hours */
-
+#endif
 #define DEFAULT_BC12_CHARGER 0 /* MAIN_CHARGER */
 
 /* battery warning */

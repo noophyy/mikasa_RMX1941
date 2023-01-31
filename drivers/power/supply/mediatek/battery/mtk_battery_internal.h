@@ -34,6 +34,11 @@
 #define FGD_NL_MAGIC 2015060303
 #define FGD_NL_MSG_MAX_LEN 9200
 
+#ifdef ODM_HQ_EDIT
+/* Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 Define seconds in 10 minutes*/
+#define TEN_MINUTES 600      /* 10 minutes = 60 * 10 second */
+#endif  /* ODM_HQ_EDIT */
+
 #define UNIT_TRANS_10	10
 
 #define UNIT_TRANS_100	100
@@ -45,7 +50,12 @@
 /* ============================================================ */
 /* power misc related */
 /* ============================================================ */
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 modify pmic shutdown voltage 3300*/
+#define BAT_VOLTAGE_LOW_BOUND 3300
+#else /*ODM_HQ_EDIT*/
 #define BAT_VOLTAGE_LOW_BOUND 3400
+#endif /*ODM_HQ_EDIT*/
 #define BAT_VOLTAGE_HIGH_BOUND 3450
 #define LOW_TMP_BAT_VOLTAGE_LOW_BOUND 3350
 #define SHUTDOWN_TIME 40
@@ -209,6 +219,7 @@ enum Fg_daemon_cmds {
 	FG_DAEMON_CMD_DUMP_LOG,
 	FG_DAEMON_CMD_SEND_DATA,
 	FG_DAEMON_CMD_COMMUNICATION_INT,
+	FG_DAEMON_CMD_SET_AGING_INFO,
 
 	FG_DAEMON_CMD_FROM_USER_NUMBER
 };
@@ -539,6 +550,8 @@ struct fuel_gauge_custom_data {
 	int power_on_car_nochr;
 	int shutdown_car_ratio;
 
+	int min_uisoc_at_kpoc;
+
 	/* log_level */
 	int daemon_log_level;
 	int record_log;
@@ -605,6 +618,13 @@ struct battery_data {
 	/* Add for Battery Service */
 	int BAT_batt_vol;
 	int BAT_batt_temp;
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add power supply file node*/
+	int BAT_call_mode;
+	int BAT_battery_charging_enabled;
+	int BAT_mmi_charging_enable;
+	struct delayed_work		uisoc_work;
+#endif /*ODM_HQ_EDIT*/
 };
 
 struct BAT_EC_Struct {
@@ -838,6 +858,8 @@ struct mtk_battery {
 	int last_nafg_cnt;
 	struct timespec last_nafg_update_time;
 	bool is_nafg_broken;
+	int old_pid;
+	int force_restart_daemon;
 
 	/* battery temperature table */
 	int no_bat_temp_compensate;
@@ -909,6 +931,11 @@ extern int pmic_get_ibus(void);
 extern int pmic_is_bif_exist(void);
 extern int pmic_get_vbus(void);
 extern bool pmic_is_battery_exist(void);
+
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add check battery present*/
+extern bool battery_present_check(void);
+#endif/*ODM_HQ_EDIT*/
 
 /* usb*/
 extern bool mt_usb_is_device(void);

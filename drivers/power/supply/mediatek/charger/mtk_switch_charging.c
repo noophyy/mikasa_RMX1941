@@ -66,6 +66,17 @@
 #include "mtk_charger_intf.h"
 #include "mtk_switch_charging.h"
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add cust control API*/
+#include <mt-plat/mtk_charger.h>
+int charger_is_timeout = 0;
+/*Shewen.Wang@ODM.HQ.BSP.CHG.Basic 2018.03.29 add charging_limit_time*/
+int force_charging_limit_time = 0;
+extern int user_cust_control;
+extern int cust_input_limit_current[5];
+extern int input_limit_level;
+#endif /*ODM_HQ_EDIT*/
+
 static int _uA_to_mA(int uA)
 {
 	if (uA == -1)
@@ -267,7 +278,12 @@ static void swchg_select_charging_current_limit(struct charger_manager *info)
 		    && info->chr_type == STANDARD_HOST)
 			pr_debug("USBIF & STAND_HOST skip current check\n");
 		else {
+#ifdef ODM_HQ_EDIT
+/* Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 Modify sw jeita level */
+			if (info->sw_jeita.sm == BATTERY_STATUS_LOW_TEMP) {
+#else  /* ODM_HQ_EDIT */
 			if (info->sw_jeita.sm == TEMP_T0_TO_T1) {
+#endif  /* ODM_HQ_EDIT */
 				pdata->input_current_limit = 500000;
 				pdata->charging_current_limit = 350000;
 			}
@@ -321,7 +337,19 @@ done:
 	if (ret != -ENOTSUPP && pdata->input_current_limit < aicr1_min)
 		pdata->input_current_limit = 0;
 
-	chr_err("force:%d thermal:%d,%d pe4:%d,%d,%d setting:%d %d type:%d usb_unlimited:%d usbif:%d usbsm:%d aicl:%d atm:%d\n",
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add cust control API*/
+	if (cust_input_limit_current[input_limit_level] < pdata->input_current_limit)
+	{
+		pdata->input_current_limit = cust_input_limit_current[input_limit_level];
+	}
+	if (info->enable_sw_jeita && pdata->charging_current_limit > info->sw_jeita.cc)
+	{
+		pdata->charging_current_limit = info->sw_jeita.cc;
+	}
+
+#endif /*ODM_HQ_EDIT*/
+	chr_err("force:%d thermal:%d,%d pe4:%d,%d,%d setting:%d %d type:%d usb_unlimited:%d usbif:%d usbsm:%d aicl:%d %d atm:%d\n",
 		_uA_to_mA(pdata->force_charging_current),
 		_uA_to_mA(pdata->thermal_input_current_limit),
 		_uA_to_mA(pdata->thermal_charging_current_limit),
@@ -332,7 +360,8 @@ done:
 		_uA_to_mA(pdata->charging_current_limit),
 		info->chr_type, info->usb_unlimited,
 		IS_ENABLED(CONFIG_USBIF_COMPLIANCE), info->usb_state,
-		pdata->input_current_limit_by_aicl, info->atm_enabled);
+		pdata->input_current_limit_by_aicl, cust_input_limit_current[input_limit_level],
+		info->atm_enabled);
 
 	charger_dev_set_input_current(info->chg1_dev,
 					pdata->input_current_limit);
@@ -412,6 +441,11 @@ static void swchg_turn_on_charging(struct charger_manager *info)
 		}
 	}
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add cust control API*/
+	if (user_cust_control & CONTROL_CHARGER_ENABLE)
+		charging_enable = false;
+#endif /*ODM_HQ_EDIT*/
 	charger_dev_enable(info->chg1_dev, charging_enable);
 }
 
@@ -433,6 +467,10 @@ static int mtk_switch_charging_plug_out(struct charger_manager *info)
 
 	swchgalg->total_charging_time = 0;
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add cust control API*/
+			charger_is_timeout = 0;
+#endif /*ODM_HQ_EDIT*/
 	mtk_pe20_set_is_cable_out_occur(info, true);
 	mtk_pe_set_is_cable_out_occur(info, true);
 	mtk_pdc_plugout(info);
@@ -481,7 +519,16 @@ static bool mtk_switch_check_charging_time(struct charger_manager *info)
 {
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 	struct timespec time_now;
-
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add charging_limit_time*/
+   if(info->data.max_charging_time != force_charging_limit_time){
+        if(force_charging_limit_time == 0){
+            force_charging_limit_time = info->data.max_charging_time;
+	    }else{
+	        info->data.max_charging_time = force_charging_limit_time;
+	    }
+    }
+#endif /*ODM_HQ_EDIT*/
 	if (info->enable_sw_safety_timer) {
 		get_monotonic_boottime(&time_now);
 		chr_debug("%s: begin: %ld, now: %ld\n", __func__,
@@ -492,6 +539,10 @@ static bool mtk_switch_check_charging_time(struct charger_manager *info)
 			chr_err("%s: SW safety timeout: %d sec > %d sec\n",
 				__func__, swchgalg->total_charging_time,
 				info->data.max_charging_time);
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add cust control API*/
+			charger_is_timeout = 1;
+#endif /*ODM_HQ_EDIT*/
 			charger_dev_notify(info->chg1_dev,
 					CHARGER_DEV_NOTIFY_SAFETY_TIMEOUT);
 			return false;
@@ -561,13 +612,25 @@ int mtk_switch_chr_err(struct charger_manager *info)
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 
 	if (info->enable_sw_jeita) {
+#ifdef ODM_HQ_EDIT
+/* Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 Modify sw jeita level */
+		if ((info->sw_jeita.sm == BATTERY_STATUS_REMOVED) ||
+			(info->sw_jeita.sm == BATTERY_STATUS_HIGH_TEMP))
+#else  /* ODM_HQ_EDIT */
 		if ((info->sw_jeita.sm == TEMP_BELOW_T0) ||
 			(info->sw_jeita.sm == TEMP_ABOVE_T4))
+#endif  /* ODM_HQ_EDIT */
 			info->sw_jeita.error_recovery_flag = false;
 
 		if ((info->sw_jeita.error_recovery_flag == false) &&
+#ifdef ODM_HQ_EDIT
+/* Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 Modify sw jeita level */
+			(info->sw_jeita.sm != BATTERY_STATUS_REMOVED) &&
+			(info->sw_jeita.sm != BATTERY_STATUS_HIGH_TEMP)) {
+#else  /* ODM_HQ_EDIT */
 			(info->sw_jeita.sm != TEMP_BELOW_T0) &&
 			(info->sw_jeita.sm != TEMP_ABOVE_T4)) {
+#endif  /* ODM_HQ_EDIT */
 			info->sw_jeita.error_recovery_flag = true;
 			swchgalg->state = CHR_CC;
 			get_monotonic_boottime(&swchgalg->charging_begin_time);
@@ -586,7 +649,10 @@ int mtk_switch_chr_full(struct charger_manager *info)
 	struct switch_charging_alg_data *swchgalg = info->algorithm_data;
 
 	swchgalg->total_charging_time = 0;
-
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add cust control API*/
+			charger_is_timeout = 0;
+#endif /*ODM_HQ_EDIT*/
 	/* turn off LED */
 
 	/*
@@ -678,7 +744,12 @@ int charger_dev_event(struct notifier_block *nb, unsigned long event, void *v)
 		pr_info("%s: end of charge\n", __func__);
 		break;
 	case CHARGER_DEV_NOTIFY_RECHG:
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 modify for charger*/
+		charger_manager_notifier(info, CHARGER_NOTIFY_EOC);
+#else /*ODM_HQ_EDIT*/
 		charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
+#endif /*ODM_HQ_EDIT*/
 		pr_info("%s: recharge\n", __func__);
 		break;
 	case CHARGER_DEV_NOTIFY_SAFETY_TIMEOUT:
@@ -693,6 +764,21 @@ int charger_dev_event(struct notifier_block *nb, unsigned long event, void *v)
 		info->vbusov_stat = data->vbusov_stat;
 		chr_err("%s: vbus ovp = %d\n", __func__, info->vbusov_stat);
 		break;
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for charger notify*/
+	case CHARGER_DEV_NOTIFY_STOP_CHARGER:
+		charger_manager_notifier(info, CHARGER_NOTIFY_STOP_CHARGING);
+		pr_info("%s: stop charge\n", __func__);
+		break;
+	case CHARGER_DEV_NOTIFY_START_CHARGER:
+		charger_manager_notifier(info, CHARGER_NOTIFY_START_CHARGING);
+		pr_info("%s: start charge\n", __func__);
+		break;
+	case CHARGER_DEV_NOTIFY_PLUG_OUT:
+		charger_manager_notifier(info, CHARGER_NOTIFY_PLUG_OUT);
+		pr_info("%s: set plug_out\n", __func__);
+		break;
+#endif /*ODM_HQ_EDIT*/
 	default:
 		return NOTIFY_DONE;
 	}

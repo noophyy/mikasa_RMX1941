@@ -26,9 +26,18 @@ subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/pmic/include
 subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/typec/tcpc/inc
 subdir-ccflags-y += -I$(srctree)/drivers/power/supply/mediatek/misc/
 subdir-ccflags-y += -I$(srctree)/drivers/power/supply/mediatek/battery/
+#ifdef ODM_HQ_EDIT
+#/*Liu.Yong@RM.CM.BSP.Charger 2020.05.15 add enable_ship_mode API*/
+subdir-ccflags-y += -I$(srctree)/drivers/misc/mediatek/auxadc
+#endif /*ODM_HQ_EDIT*/
 
-obj-y += charger_class.o mtk_charger.o mtk_switch_charging.o mtk_pdc_intf.o\
-	 mtk_chg_type_det.o mtk_pe40_intf.o adapter_class.o mtk_pd_adapter.o
+#ifdef VENDOR_EDIT /* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Modify for charging */
+#obj-y += charger_class.o mtk_switch_charging.o mtk_pdc_intf.o\
+#	 mtk_chg_type_det.o mtk_pe40_intf.o adapter_class.o
+#else
+obj-y += adapter_class.o charger_class.o mtk_charger.o mtk_switch_charging.o mtk_pdc_intf.o\
+	 mtk_chg_type_det.o mtk_pe40_intf.o
+#endif
 
 obj-$(CONFIG_MTK_DUAL_CHARGER_SUPPORT) += mtk_dual_switch_charging.o
 obj-$(CONFIG_MTK_PUMP_EXPRESS_PLUS_SUPPORT) += mtk_pe_intf.o
@@ -36,4 +45,9 @@ obj-$(CONFIG_MTK_PUMP_EXPRESS_PLUS_20_SUPPORT) += mtk_pe20_intf.o
 obj-$(CONFIG_CHARGER_RT9465) += rt9465.o
 obj-$(CONFIG_CHARGER_RT9471) += rt9471.o
 obj-$(CONFIG_CHARGER_BQ25601) += bq25601.o
-obj-$(CONFIG_MTK_BQ25890_SUPPORT) += bq25890.o
+
+ifeq (yes,$(strip $(HQ_COMPILE_FACTORY_VERSION)))
+  ccflags-y += -DHQ_COMPILE_FACTORY_VERSION
+endif
+  obj-$(CONFIG_BQ2560X_CHARGER) += bq2560x_charger.o
+

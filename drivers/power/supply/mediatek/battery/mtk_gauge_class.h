@@ -244,7 +244,13 @@ struct gauge_ops {
 		struct gauge_device *gauge_dev,
 		enum gauge_event evt, int value);
 
-
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add set monitci soc for rtc*/
+	int (*gauge_set_rtc_monitic_soc)(
+		struct gauge_device *gauge_dev, int ui_soc);
+	int (*gauge_get_rtc_monitic_soc)(
+		struct gauge_device *gauge_dev, int *ui_soc);
+#endif /*ODM_HQ_EDIT*/
 };
 
 struct gauge_device {
@@ -362,6 +368,13 @@ extern int gauge_dev_get_info(
 	struct gauge_device *gauge_dev, enum gauge_info ginfo, int *value);
 extern int gauge_dev_notify_event(
 	struct gauge_device *gauge_dev, enum gauge_event evt, int value);
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add set monitci soc for rtc*/
+extern int gauge_dev_set_monitic_rtc_ui_soc(
+	struct gauge_device *gauge_dev, int ui_soc);
+extern int gauge_dev_get_monitic_rtc_ui_soc(
+	struct gauge_device *gauge_dev, int *ui_soc);
+#endif /*ODM_HQ_EDIT*/
 
 #endif
 
