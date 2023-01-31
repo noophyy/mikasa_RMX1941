@@ -105,8 +105,14 @@ int usb_otg_set_vbus(int is_on)
 #if CONFIG_MTK_GAUGE_VERSION == 30
 	if (is_on) {
 		charger_dev_enable_otg(g_info->primary_charger, true);
+#ifdef VENDOR_EDIT
+		/* lizhijie@BSP.CHG.Basic, 2019/11/21, lzj Modify for OTG */
+		charger_dev_set_boost_current_limit(g_info->primary_charger,
+			1100000);
+#else
 		charger_dev_set_boost_current_limit(g_info->primary_charger,
 			1500000);
+#endif
 		charger_dev_kick_wdt(g_info->primary_charger);
 		enable_boost_polling(true);
 	} else {
@@ -116,8 +122,14 @@ int usb_otg_set_vbus(int is_on)
 #else
 	if (is_on) {
 		charger_dev_enable_otg(g_info->primary_charger, true);
+#ifdef VENDOR_EDIT
+/* lizhijie@BSP.CHG.Basic, 2019/11/21, lzj Modify for OTG */
+		charger_dev_set_boost_current_limit(g_info->primary_charger,
+			1100000);
+#else
 		charger_dev_set_boost_current_limit(g_info->primary_charger,
 			1500000);
+#endif
 	} else {
 		charger_dev_enable_otg(primary_charger, false);
 	}

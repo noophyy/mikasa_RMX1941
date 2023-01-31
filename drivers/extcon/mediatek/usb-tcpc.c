@@ -28,6 +28,11 @@
 #include "typec.h"
 #endif
 
+#ifdef VENDOR_EDIT
+/*lizhije@BSP.CHG.Basic. lzj 2019/12/06 add for usbtemp function*/
+extern void oppo_wake_up_usbtemp_thread(void);
+#endif
+
 static struct notifier_block otg_nb;
 static bool usbc_otg_attached;
 static struct tcpc_device *otg_tcpc_dev;
@@ -43,7 +48,12 @@ static int tcpc_otg_enable(void)
 	return 0;
 }
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Modify for OTG */
+int tcpc_otg_disable(void)
+#else
 static int tcpc_otg_disable(void)
+#endif /*VENDOR_EDIT*/
 {
 	if (usbc_otg_attached) {
 		mt_usbhost_disconnect();
@@ -51,8 +61,17 @@ static int tcpc_otg_disable(void)
 	}
 	return 0;
 }
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Add for OTG */
+EXPORT_SYMBOL(tcpc_otg_disable);
+#endif
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Modify for OTG */
+void tcpc_power_work_call(bool enable)
+#else
 static void tcpc_power_work_call(bool enable)
+#endif /*VENDOR_EDIT*/
 {
 	if (enable) {
 		if (!tcpc_boost_on) {
@@ -66,6 +85,10 @@ static void tcpc_power_work_call(bool enable)
 		}
 	}
 }
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Add for OTG */
+EXPORT_SYMBOL(tcpc_power_work_call);
+#endif
 
 static int otg_tcp_notifier_call(struct notifier_block *nb,
 		unsigned long event, void *data)
@@ -93,6 +116,10 @@ static int otg_tcp_notifier_call(struct notifier_block *nb,
 			noti->typec_state.new_state == TYPEC_ATTACHED_SRC) {
 			pr_info("%s OTG Plug in\n", __func__);
 			tcpc_otg_enable();
+#ifdef VENDOR_EDIT
+/*lizhije@BSP.CHG.Basic. lzj 2019/12/06 add for usbtemp function*/
+			oppo_wake_up_usbtemp_thread();
+#endif
 		} else if ((noti->typec_state.old_state == TYPEC_ATTACHED_SRC ||
 			noti->typec_state.old_state == TYPEC_ATTACHED_SNK) &&
 			noti->typec_state.new_state == TYPEC_UNATTACHED) {
