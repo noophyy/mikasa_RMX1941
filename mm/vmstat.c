@@ -947,6 +947,11 @@ const char * const vmstat_text[] = {
 #endif
 	"nr_free_cma",
 
+#ifdef VENDOR_EDIT
+/*Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-09-25, add ion cached account*/
+	"nr_ioncache_pages",
+#endif /*VENDOR_EDIT*/
+
 	/* Node-based counters */
 	"nr_inactive_anon",
 	"nr_active_anon",

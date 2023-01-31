@@ -77,6 +77,10 @@
 
 #include <mt-plat/mtk_memcfg_reserve_info.h>
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_MEM_MONITOR)
+#include <linux/memory_monitor.h>
+#endif /*VENDOR_EDIT*/
+
 /* prevent >1 _updater_ of zone percpu pageset ->high and ->batch fields */
 static DEFINE_MUTEX(pcp_batch_high_lock);
 #define MIN_PERCPU_PAGELIST_FRACTION	(8)
@@ -2597,7 +2601,8 @@ int __isolate_free_page(struct page *page, unsigned int order)
 		struct page *endpage = page + (1 << order) - 1;
 		for (; page < endpage; page += pageblock_nr_pages) {
 			int mt = get_pageblock_migratetype(page);
-			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt))
+			if (!is_migrate_isolate(mt) && !is_migrate_cma(mt)
+				)
 				set_pageblock_migratetype(page,
 							  MIGRATE_MOVABLE);
 		}
@@ -2684,9 +2689,18 @@ struct page *buffered_rmqueue(struct zone *preferred_zone,
 				if (page)
 					trace_mm_page_alloc_zone_locked(page, order, migratetype);
 			}
+
 			if (!page)
 				page = __rmqueue(zone, order, migratetype);
 		} while (page && check_new_pages(page, order));
+#ifdef VENDOR_EDIT
+/* Shiming.Zhang@PSW.BSP.Kernel.MM, 2017-11-15
+ * order-2 allocate from MIGRATE_HIGHATOMIC instead of fail
+ */
+		if (!page && order == 2)
+			page = __rmqueue_smallest(zone, order, MIGRATE_HIGHATOMIC);
+#endif /* VENDOR_EDIT */
+
 		spin_unlock(&zone->lock);
 		if (!page)
 			goto failed;
@@ -2815,7 +2829,17 @@ bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
 	if (likely(!alloc_harder))
 		free_pages -= z->nr_reserved_highatomic;
 	else
+#ifdef VENDOR_EDIT
+/* Shiming.Zhang@PSW.BSP.Kernel.MM, 2017-11-15
+ * ALLOC_HIGH:ALLOC_HARDER is about 1:10, so more for ALLOC_HARDER
+ * and since 2-order might allocate from MIGRATE_HIGHATOMIC as fallback,
+ * so here should make it easier for ALLOC_HARDER.
+ * after this change, kswapd might reclaim a bit more, which is what we want.
+ */
+		min -= min / 4 + min / 8;
+#else
 		min -= min / 4;
+#endif /* VENDOR_EDIT */
 
 #ifdef CONFIG_CMA
 	/* If allocation can't use CMA areas don't use free CMA pages */
@@ -3573,6 +3597,10 @@ __alloc_pages_slowpath(gfp_t gfp_mask, unsigned int order,
 	int compaction_retries;
 	int no_progress_loops;
 	unsigned int cpuset_mems_cookie;
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_MEM_MONITOR)
+/* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-07-07, add alloc wait monitor support*/
+	unsigned long oppo_alloc_start = jiffies;
+#endif /*VENDOR_EDIT*/
 
 	/*
 	 * In the slowpath, we sanity check order to avoid ever trying to
@@ -3792,6 +3820,10 @@ nopage:
 	warn_alloc(gfp_mask,
 			"page allocation failure: order:%u", order);
 got_pg:
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_MEM_MONITOR)
+/* Huacai.Zhou@PSW.BSP.Kernel.MM, 2018-07-07, add alloc wait monitor support*/
+	memory_alloc_monitor(gfp_mask, order,jiffies_to_msecs(jiffies - oppo_alloc_start));
+#endif /*VENDOR_EDIT*/
 	return page;
 }
 
@@ -6903,6 +6935,20 @@ int min_free_kbytes_sysctl_handler(struct ctl_table *table, int write,
 		user_min_free_kbytes = min_free_kbytes;
 		setup_per_zone_wmarks();
 	}
+	return 0;
+}
+int kswapd_threads_sysctl_handler(struct ctl_table *table, int write,
+	void __user *buffer, size_t *length, loff_t *ppos)
+{
+	int rc;
+
+	rc = proc_dointvec_minmax(table, write, buffer, length, ppos);
+	if (rc)
+		return rc;
+
+	if (write)
+		update_kswapd_threads();
+
 	return 0;
 }
 

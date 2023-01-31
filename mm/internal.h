@@ -501,5 +501,13 @@ extern const struct trace_print_flags gfpflag_names[];
 					zone_idx(z))
 
 ssize_t print_max_page_owner(void);
+#ifdef VENDOR_EDIT
+/*Huacai.Zhou@PSW.kernel.mm, 2018-08-30, lowmem optimize*/
+#define SZ_1G_PAGES (SZ_1G >> PAGE_SHIFT)
+#define TOTALRAM_2GB (2*SZ_1G_PAGES)
+#define TOTALRAM_3GB (3*SZ_1G_PAGES)
+#define TOTALRAM_4GB (4*SZ_1G_PAGES)
+#define TOTALRAM_6GB (6*SZ_1G_PAGES)
+#endif /*VENDOR_EDIT*/
 
 #endif	/* __MM_INTERNAL_H */

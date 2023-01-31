@@ -433,6 +433,57 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
 	return false;
 }
 
+#ifdef VENDOR_EDIT
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLAB_STAT_DEBUG is
+ * is enabled, /proc/slabinfo is created for getting more slab details. */
+#if defined(CONFIG_SLUB_DEBUG) || defined(CONFIG_SLUB_STAT_DEBUG)
+/* Tracking of the number of slabs for debugging purposes */
+static inline unsigned long slabs_node(struct kmem_cache *s, int node)
+{
+	struct kmem_cache_node *n = get_node(s, node);
+
+	return atomic_long_read(&n->nr_slabs);
+}
+
+static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
+{
+	return atomic_long_read(&n->nr_slabs);
+}
+
+static inline void inc_slabs_node(struct kmem_cache *s, int node, int objects)
+{
+	struct kmem_cache_node *n = get_node(s, node);
+
+	/*
+	 * May be called early in order to allocate a slab for the
+	 * kmem_cache_node structure. Solve the chicken-egg
+	 * dilemma by deferring the increment of the count during
+	 * bootstrap (see early_kmem_cache_node_alloc).
+	 */
+	if (likely(n)) {
+		atomic_long_inc(&n->nr_slabs);
+		atomic_long_add(objects, &n->total_objects);
+	}
+}
+static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
+{
+	struct kmem_cache_node *n = get_node(s, node);
+
+	atomic_long_dec(&n->nr_slabs);
+	atomic_long_sub(objects, &n->total_objects);
+}
+#else
+static inline unsigned long slabs_node(struct kmem_cache *s, int node)
+							{ return 0; }
+static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
+							{ return 0; }
+static inline void inc_slabs_node(struct kmem_cache *s, int node,
+							int objects) {}
+static inline void dec_slabs_node(struct kmem_cache *s, int node,
+							int objects) {}
+#endif /* CONFIG_SLUB_DEBUG || CONFIG_SLUB_STAT_DEBUG */
+#endif /* VENDOR_EDIT */
+
 static void slab_bug_freelist(struct kmem_cache *s, char *fmt, ...)
 {
 	struct va_format vaf;
@@ -1101,6 +1152,11 @@ static void remove_full(struct kmem_cache *s, struct kmem_cache_node *n, struct 
 	list_del(&page->lru);
 }
 
+#ifndef VENDOR_EDIT
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLUB_STAT_DEBUG is
+ * is enabled, /proc/slabinfo is created for getting more slab details.
+ */
+
 /* Tracking of the number of slabs for debugging purposes */
 static inline unsigned long slabs_node(struct kmem_cache *s, int node)
 {
@@ -1136,6 +1192,7 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
 	atomic_long_dec(&n->nr_slabs);
 	atomic_long_sub(objects, &n->total_objects);
 }
+#endif /* VENDOR_EDIT */
 
 /* Object debug checks for alloc/free paths */
 static void setup_object_debug(struct kmem_cache *s, struct page *page,
@@ -1392,6 +1449,10 @@ unsigned long kmem_cache_flags(unsigned long object_size,
 
 #define disable_higher_order_debug 0
 
+#ifndef VENDOR_EDIT
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLUB_STAT_DEBUG is
+ * is enabled, /proc/slabinfo is created for getting more slab details.
+ */
 static inline unsigned long slabs_node(struct kmem_cache *s, int node)
 							{ return 0; }
 static inline unsigned long node_nr_slabs(struct kmem_cache_node *n)
@@ -1400,7 +1461,7 @@ static inline void inc_slabs_node(struct kmem_cache *s, int node,
 							int objects) {}
 static inline void dec_slabs_node(struct kmem_cache *s, int node,
 							int objects) {}
-
+#endif /* VENDOR_EDIT */
 #endif /* CONFIG_SLUB_DEBUG */
 
 /*
@@ -2436,7 +2497,11 @@ static inline int node_match(struct page *page, int node)
 	return 1;
 }
 
-#ifdef CONFIG_SLUB_DEBUG
+#if defined(CONFIG_SLUB_DEBUG) || (defined(VENDOR_EDIT) &&\
+		defined(CONFIG_SLUB_STAT_DEBUG))
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLUB_STAT_DEBUG is
+  * is enabled, /proc/slabinfo is created for getting more slab details.
+  */
 static int count_free(struct page *page)
 {
 	return page->objects - page->inuse;
@@ -3386,7 +3451,11 @@ init_kmem_cache_node(struct kmem_cache_node *n)
 	n->nr_partial = 0;
 	spin_lock_init(&n->list_lock);
 	INIT_LIST_HEAD(&n->partial);
-#ifdef CONFIG_SLUB_DEBUG
+#if defined(CONFIG_SLUB_DEBUG) || (defined(VENDOR_EDIT) &&\
+			defined(CONFIG_SLUB_STAT_DEBUG))
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, if SLUB_STAT_DEBUG is
+* is enabled, /proc/slabinfo is created for getting more slab details.
+*/
 	atomic_long_set(&n->nr_slabs, 0);
 	atomic_long_set(&n->total_objects, 0);
 	INIT_LIST_HEAD(&n->full);
@@ -5898,7 +5967,12 @@ ssize_t slabinfo_write(struct file *file, const char __user *buffer,
 	return -EIO;
 }
 
-#ifdef CONFIG_MTK_MEMCFG
+#if defined(CONFIG_MTK_MEMCFG) &&\
+	((defined(VENDOR_EDIT) && !defined(CONFIG_SLUB_STAT_DEBUG)) ||\
+	 !defined(VENDOR_EDIT))
+/* Kui.Zhang@PSW.BSP.Kernel.Performance, 2018-11-12, Only implement all
+ * functions while CONFIG_SLUB_DEBUG enabled
+ */
 static int mtk_memcfg_add_location(struct loc_track *t, struct kmem_cache *s,
 				const struct track *track)
 {
