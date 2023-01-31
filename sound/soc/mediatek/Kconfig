@@ -250,3 +250,13 @@ config SND_SOC_MTK_AUDIO_DSP
 	  that can be used with other platforms
 	  Select Y if you have such device.
 	  If unsure select "N".
+
+#ifdef VENDOR_EDIT
+#Yongzhi.Zhang@PSW.MM.AudioDriver.feature.1209435, 2019/01/07, add for KTV
+config OPPO_KTV_DEV
+    bool "KTV feature"
+	default n
+	help
+	    This will enable KTV feature
+#endif /*VENDOR_EDIT*/
+

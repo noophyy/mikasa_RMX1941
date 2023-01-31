@@ -33,11 +33,30 @@ static const char *const mt6779_spk_i2s_type_str[] = {MTK_SPK_I2S_0_STR,
 						      MTK_SPK_I2S_3_STR,
 						      MTK_SPK_I2S_5_STR};
 
+#ifdef VENDOR_EDIT
+/* Jun.Liang@MM.AudioDriver.Machine, 2019/10/24, add for dual spk */
+extern bool tfa98xx_dual_spk;
+
+enum oppo_spk_dualmono_type {
+	OPPO_SPK_MONO = 0,
+	OPPO_SPK_DUAL,
+	OPPO_SPK_DUALMONO_TYPE_NUM
+};
+
+static const char *const mt6779_oppo_spk_dualmono_type[] = {"OPPO_SPK_MONO",
+						      "OPPO_SPK_DUAL"};
+#endif /* VENDOR_EDIT */
+
 static const struct soc_enum mt6779_spk_type_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(mt6779_spk_type_str),
 			    mt6779_spk_type_str),
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(mt6779_spk_i2s_type_str),
 			    mt6779_spk_i2s_type_str),
+	#ifdef VENDOR_EDIT
+	/* Jun.Liang@MM.AudioDriver.Machine, 2019/10/24, add for dual spk */
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(mt6779_oppo_spk_dualmono_type),
+			    mt6779_oppo_spk_dualmono_type),
+	#endif /* VENDOR_EDIT */
 };
 
 static int mt6779_spk_type_get(struct snd_kcontrol *kcontrol,
@@ -69,6 +88,19 @@ static int mt6779_spk_i2s_in_type_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[0] = idx;
 	return 0;
 }
+
+#ifdef VENDOR_EDIT
+/* Jun.Liang@MM.AudioDriver.Machine, 2019/10/24, add for dual spk */
+static int mt6779_dual_spk_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	int idx = tfa98xx_dual_spk ? OPPO_SPK_DUAL : OPPO_SPK_MONO;
+
+	pr_info("%s() = %d\n", __func__, idx);
+	ucontrol->value.integer.value[0] = idx;
+	return 0;
+}
+#endif /* VENDOR_EDIT */
 
 static int mt6779_mt6359_spk_amp_event(struct snd_soc_dapm_widget *w,
 				       struct snd_kcontrol *kcontrol,
@@ -111,6 +143,11 @@ static const struct snd_kcontrol_new mt6779_mt6359_controls[] = {
 		     mt6779_spk_i2s_out_type_get, NULL),
 	SOC_ENUM_EXT("MTK_SPK_I2S_IN_TYPE_GET", mt6779_spk_type_enum[1],
 		     mt6779_spk_i2s_in_type_get, NULL),
+	#ifdef VENDOR_EDIT
+	/* Jun.Liang@MM.AudioDriver.Machine, 2019/10/24, add for dual spk */
+	SOC_ENUM_EXT("OPPO_DUAL_SPK_GET", mt6779_spk_type_enum[2],
+		     mt6779_dual_spk_get, NULL),
+	#endif /* VENDOR_EDIT */
 };
 
 /*
@@ -359,6 +396,66 @@ static const struct snd_soc_ops mt6779_mt6359_vow_ops = {
 	.shutdown = mt6779_mt6359_vow_shutdown,
 };
 #endif  // #ifdef CONFIG_MTK_VOW_SUPPORT
+
+#ifdef VENDOR_EDIT
+#ifdef CONFIG_SND_SOC_ALSACODEC_AK4376
+/* Yongzhi.Zhang@PSW.MM.AudioDriver.HeadsetDAC, 2018/11/06,
+ * add for no sound when ap suspend in call.
+ */
+static int ak4376_audrx_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);//&codec->dapm;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+
+	pr_info("%s(),dev_name%s\n", __func__, dev_name(cpu_dai->dev));
+
+	snd_soc_dapm_ignore_suspend(dapm, "AK4376 HPL");
+	snd_soc_dapm_ignore_suspend(dapm, "AK4376 HPR");
+	/* xiang.fei@PSW.MM.AudioDriver.HeadsetDAC, 2018/11/06, Add for kernel 4.4 */
+	//snd_soc_dapm_ignore_suspend(dapm, "Playback");
+
+	snd_soc_dapm_sync(dapm);
+
+	return 0;
+}
+#endif /* CONFIG_SND_SOC_ALSACODEC_AK4376 */
+
+/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine.1792635, 2019/01/10,
+ * add for dual spk */
+struct snd_soc_dai_link_component tfa98xx_dails[] = {
+	{
+		.of_node = NULL,
+		.name = "tfa98xx.6-0035",
+		.dai_name = "tfa98xx-aif-6-35",
+	},
+
+	{
+		.of_node = NULL,
+		.name = "tfa98xx.6-0034",
+		.dai_name = "tfa98xx-aif-6-34",
+	},
+};
+static struct snd_soc_dai_link tfa98xx_dai_link_stereo[] = {
+    {
+        .name = "I2S3",
+        .cpu_dai_name = "I2S3",
+#ifdef CONFIG_SND_SOC_ALSACODEC_TFA9890
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine.1792635, 2019/01/10,
+		 * add for dual spk */
+		.codecs = tfa98xx_dails,
+		.num_codecs = ARRAY_SIZE(tfa98xx_dails),
+#else /* CONFIG_SND_SOC_ALSACODEC_TFA9890 */
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+#endif /* CONFIG_SND_SOC_ALSACODEC_TFA9890 */
+        .no_pcm = 1,
+        .dpcm_playback = 1,
+        .ignore_suspend = 1,
+        .be_hw_params_fixup = mt6779_i2s_hw_params_fixup,
+    },
+};
+#endif /* VENDOR_EDIT */
 
 static struct snd_soc_dai_link mt6779_mt6359_dai_links[] = {
 	/* Front End DAI links */
@@ -737,8 +834,20 @@ static struct snd_soc_dai_link mt6779_mt6359_dai_links[] = {
 	{
 		.name = "I2S3",
 		.cpu_dai_name = "I2S3",
+#ifdef VENDOR_EDIT
+/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2018/11/06,
+ * add TFA9890 & AK4376 ALSA driver */
+#ifdef CONFIG_SND_SOC_ALSACODEC_TFA9890
+		.codec_name = "tfa98xx.3-0035",
+		.codec_dai_name = "tfa98xx-aif-3-35",
+#else /* CONFIG_SND_SOC_ALSACODEC_TFA9890 */
+        .codec_dai_name = "snd-soc-dummy-dai",
+        .codec_name = "snd-soc-dummy",
+#endif /* CONFIG_SND_SOC_ALSACODEC_TFA9890 */
+#else /* VENDOR_EDIT */
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
+#endif /* VENDOR_EDIT */
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.ignore_suspend = 1,
@@ -757,8 +866,21 @@ static struct snd_soc_dai_link mt6779_mt6359_dai_links[] = {
 	{
 		.name = "I2S1",
 		.cpu_dai_name = "I2S1",
+#ifdef VENDOR_EDIT
+/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2018/11/06,
+ * add TFA9890 & AK4376 ALSA driver */
+#ifdef CONFIG_SND_SOC_ALSACODEC_AK4376
+		.codec_name = "ak4376.6-0010",
+		.codec_dai_name = "ak4376-AIF1",
+		.init = ak4376_audrx_init,
+#else /* CONFIG_SND_SOC_ALSACODEC_AK4376 */
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
+#endif /* CONFIG_SND_SOC_ALSACODEC_AK4376 */
+#else /* VENDOR_EDIT */
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+#endif /* VENDOR_EDIT */
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.ignore_suspend = 1,
@@ -1048,13 +1170,16 @@ static int mt6779_mt6359_dev_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 
+#ifndef VENDOR_EDIT
+	/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2018/11/06,
+	 * remove for TFA9890 ALSA driver */
 	ret = mtk_spk_update_dai_link(card, pdev, &mt6779_mt6359_i2s_ops);
 	if (ret) {
 		dev_err(&pdev->dev, "%s(), mtk_spk_update_dai_link error\n",
 			__func__);
 		return -EINVAL;
 	}
-
+#endif /* VENDOR_EDIT */
 	platform_node = of_parse_phandle(pdev->dev.of_node,
 					 "mediatek,platform", 0);
 	if (!platform_node) {
@@ -1075,8 +1200,31 @@ static int mt6779_mt6359_dev_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 	for (i = 0; i < card->num_links; i++) {
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine.1792635, 2019/01/13,
+		 * add for dual spk */
+		if (tfa98xx_dual_spk) {
+			if (!strcmp(mt6779_mt6359_dai_links[i].name, "I2S3")) {
+			    memcpy(&mt6779_mt6359_dai_links[i], &tfa98xx_dai_link_stereo[0],
+					sizeof(tfa98xx_dai_link_stereo[0]));
+				dev_info(card->dev, "%s: use stereo dailink replace for tfa98xx\n", __func__);
+				continue;
+			}
+		}
+#endif /* VENDOR_EDIT */
+
 		if (mt6779_mt6359_dai_links[i].codec_name)
 			continue;
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine.1792635, 2019/01/13,
+		 * add for dual spk */
+		if (tfa98xx_dual_spk) {
+			if (!strcmp(mt6779_mt6359_dai_links[i].name, "I2S3")) {
+				dev_info(card->dev, "%s: skip I2S3\n", __func__);
+				continue;
+			}
+		}
+#endif /* VENDOR_EDIT */
 		mt6779_mt6359_dai_links[i].codec_of_node = codec_node;
 	}
 

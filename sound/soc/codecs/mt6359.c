@@ -287,6 +287,36 @@ struct mt6359_priv {
 /* static function declaration */
 static int dc_trim_thread(void *arg);
 
+#ifdef CONFIG_SND_SOC_DBMDX
+/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2018/11/14, add dbmdx */
+extern void set_vaud18_enable(bool enable);
+extern struct regmap *mt6359_ep_regmap;
+
+struct regmap *mt6359_ep_regmap;
+
+void set_vaud18_enable(bool enable)
+{
+	pr_info("%s: enable = %d", __func__, enable);
+
+	if (mt6359_ep_regmap == NULL) {
+		pr_err("%s: no regmap enable = %d", __func__, enable);
+		return;
+	}
+
+	if (enable) {
+	regmap_update_bits(mt6359_ep_regmap, MT6359_LDO_VAUD18_CON0,
+			   RG_LDO_VAUD18_EN_MASK_SFT,
+			   1 << RG_LDO_VAUD18_EN_SFT);
+	} else {
+		regmap_update_bits(mt6359_ep_regmap, MT6359_LDO_VAUD18_CON0,
+				   RG_LDO_VAUD18_EN_MASK_SFT,
+				   0 << RG_LDO_VAUD18_EN_SFT);
+	}
+
+	return;
+}
+#endif /* CONFIG_SND_SOC_DBMDX */
+
 int mt6359_set_codec_ops(struct snd_soc_component *cmpnt,
 			 struct mt6359_codec_ops *ops)
 {
@@ -2215,9 +2245,17 @@ static int mt_mic_bias_0_event(struct snd_soc_dapm_widget *w,
 		}
 
 		/* MISBIAS0 = 1P9V */
+#ifdef CONFIG_SND_SOC_DBMDX
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform, 2019/05/31,
+		 * separate micbias voltage for analog mic and digital mic */
 		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON15,
 				   RG_AUDMICBIAS0VREF_MASK_SFT,
 				   MIC_BIAS_1P9 << RG_AUDMICBIAS0VREF_SFT);
+#else /* CONFIG_SND_SOC_DBMDX */
+		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON15,
+				   RG_AUDMICBIAS0VREF_MASK_SFT,
+				   MIC_BIAS_2P5 << RG_AUDMICBIAS0VREF_SFT);
+#endif /* CONFIG_SND_SOC_DBMDX */
 		/* vow low power select */
 		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON15,
 				   RG_AUDMICBIAS0LOWPEN_MASK_SFT,
@@ -2253,8 +2291,15 @@ static int mt_mic_bias_1_event(struct snd_soc_dapm_widget *w,
 			regmap_write(priv->regmap,
 				     MT6359_AUDENC_ANA_CON16, 0x0160);
 		else
+#ifdef VENDOR_EDIT
+			/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform, 2019/04/02,
+			 * add for setting micbias 2.8V after recording */
+			regmap_write(priv->regmap,
+				     MT6359_AUDENC_ANA_CON16, 0x3060);
+#else /* VENDOR_EDIT */
 			regmap_write(priv->regmap,
 				     MT6359_AUDENC_ANA_CON16, 0x0060);
+#endif /* VENDOR_EDIT */
 
 		/* vow low power select */
 		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON16,
@@ -2303,9 +2348,17 @@ static int mt_mic_bias_2_event(struct snd_soc_dapm_widget *w,
 		}
 
 		/* MISBIAS2 = 1P9V */
+#ifdef CONFIG_SND_SOC_DBMDX
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform, 2019/05/31,
+		 * separate micbias voltage for analog mic and digital mic */
 		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON17,
 				   RG_AUDMICBIAS2VREF_MASK_SFT,
 				   MIC_BIAS_1P9 << RG_AUDMICBIAS2VREF_SFT);
+#else /* CONFIG_SND_SOC_DBMDX */
+		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON17,
+				   RG_AUDMICBIAS2VREF_MASK_SFT,
+				   MIC_BIAS_2P5 << RG_AUDMICBIAS2VREF_SFT);
+#endif /* CONFIG_SND_SOC_DBMDX */
 		/* vow low power select */
 		regmap_update_bits(priv->regmap, MT6359_AUDENC_ANA_CON17,
 				   RG_AUDMICBIAS2LOWPEN_MASK_SFT,
@@ -3499,9 +3552,16 @@ static const struct snd_soc_dapm_widget mt6359_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("CLK_BUF", SUPPLY_SEQ_CLK_BUF,
 			      MT6359_DCXO_CW12,
 			      RG_XO_AUDIO_EN_M_SFT, 0, NULL, 0),
+#ifdef CONFIG_SND_SOC_DBMDX
+	/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2018/11/14, add dbmdx */
+	SND_SOC_DAPM_SUPPLY_S("LDO_VAUD18", SUPPLY_SEQ_LDO_VAUD18,
+			      SND_SOC_NOPM,
+			      0, 0, NULL, 0),
+#else /* CONFIG_SND_SOC_DBMDX */
 	SND_SOC_DAPM_SUPPLY_S("LDO_VAUD18", SUPPLY_SEQ_LDO_VAUD18,
 			      MT6359_LDO_VAUD18_CON0,
 			      RG_LDO_VAUD18_EN_SFT, 0, NULL, 0),
+#endif /* CONFIG_SND_SOC_DBMDX */
 	SND_SOC_DAPM_SUPPLY_S("AUDGLB", SUPPLY_SEQ_AUD_GLB,
 			      MT6359_AUDDEC_ANA_CON13,
 			      RG_AUDGLB_PWRDN_VA32_SFT, 1, NULL, 0),
@@ -4419,6 +4479,7 @@ static void enable_trim_buf(struct mt6359_priv *priv, bool enable)
 
 static void enable_trim_circuit(struct mt6359_priv *priv, bool enable)
 {
+	pr_info("%s: set %d\n", __func__, enable);
 	if (enable) {
 		regmap_update_bits(priv->regmap, MT6359_LDO_VAUD18_CON0,
 				   RG_LDO_VAUD18_EN_MASK_SFT,
@@ -4433,10 +4494,12 @@ static void enable_trim_circuit(struct mt6359_priv *priv, bool enable)
 		regmap_update_bits(priv->regmap, MT6359_AUDDEC_ANA_CON2,
 				   RG_AUDHPTRIM_EN_VAUDP32_MASK_SFT,
 				   0 << RG_AUDHPTRIM_EN_VAUDP32_SFT);
-
+#ifndef CONFIG_SND_SOC_DBMDX
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2018/11/14, remove for dbmdx micbias */
 		regmap_update_bits(priv->regmap, MT6359_LDO_VAUD18_CON0,
 				   RG_LDO_VAUD18_EN_MASK_SFT,
 				   0 << RG_LDO_VAUD18_EN_SFT);
+#endif /* CONFIG_SND_SOC_DBMDX */
 	}
 }
 
@@ -6342,6 +6405,15 @@ static int mt6359_codec_init_reg(struct mt6359_priv *priv)
 			   RG_AUDLOLSCDISABLE_VAUDP32_MASK_SFT,
 			   0x1 << RG_AUDLOLSCDISABLE_VAUDP32_SFT);
 
+#ifdef CONFIG_SND_SOC_DBMDX
+	/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2019/05/21, add dbmdx */
+	printk("%s: MT6359_LDO_VAUD18_CON0 set bit0 1\n", __func__);
+
+	regmap_update_bits(priv->regmap, MT6359_LDO_VAUD18_CON0,
+			   RG_LDO_VAUD18_EN_MASK_SFT,
+			   1 << RG_LDO_VAUD18_EN_SFT);
+#endif
+
 	/* set gpio */
 	gpio_smt_set(priv);
 	gpio_driving_set(priv);
@@ -7370,7 +7442,15 @@ static ssize_t mt6359_debugfs_read(struct file *file, char __user *buf,
 	regmap_read(priv->regmap, MT6359_ZCD_CON5, &value);
 	n += scnprintf(buffer + n, size - n,
 		       "MT6359_ZCD_CON5 = 0x%x\n", value);
-
+#ifdef VENDOR_EDIT
+	/* Yongzhi.Zhang@PSW.MM.AudioDriver.Log, 2019/03/12, add log for printing necessary registers */
+	regmap_read(priv->regmap, MT6359_AFE_ADDA6_L_SRC_CON0_H, &value);
+	n += scnprintf(buffer + n, size - n,
+		       "MT6359_AFE_ADDA6_L_SRC_CON0_H = 0x%x\n", value);
+	regmap_read(priv->regmap, MT6359_AFE_ADDA6_UL_SRC_CON0_L, &value);
+	n += scnprintf(buffer + n, size - n,
+		       "MT6359_AFE_ADDA6_UL_SRC_CON0_L = 0x%x\n", value);
+#endif /* VENDOR_EDIT */
 	ret = simple_read_from_buffer(buf, count, pos, buffer, n);
 	kfree(buffer);
 	return ret;
@@ -7584,6 +7664,11 @@ static int mt6359_platform_driver_probe(struct platform_device *pdev)
 #endif
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
+
+#ifdef CONFIG_SND_SOC_DBMDX
+	/* Yongzhi.Zhang@PSW.MM.AudioDriver.Machine, 2019/05/21, add dbmdx */
+	mt6359_ep_regmap = priv->regmap;
+#endif /* CONFIG_SND_SOC_DBMDX */
 
 	/* create debugfs file */
 	priv->debugfs = debugfs_create_file("mtksocanaaudio",
