@@ -34,6 +34,12 @@
 
 #include <trace/events/sched.h>
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.BSP.MM, 2018/05/02
+// Add for get cpu load
+#include <soc/oppo/oppo_healthinfo.h>
+#endif /*VENDOR_EDIT*/
+
 #include "sched.h"
 #include "tune.h"
 #include "walt.h"
@@ -137,6 +143,32 @@ unsigned int sysctl_sched_cfs_bandwidth_slice = 5000UL;
  * util * margin < capacity * 1024
  */
 unsigned int capacity_margin = 1280; /* ~20% */
+#ifdef VENDOR_EDIT
+int sched_get_updown_migrate(unsigned int *up_migrate,
+        unsigned int *down_migrate)
+{
+    if (!up_migrate || !down_migrate)
+        return -1;
+    *up_migrate = SCHED_FIXEDPOINT_SCALE * 100 / capacity_margin;
+    *down_migrate = *up_migrate;
+    return 0;
+}
+EXPORT_SYMBOL(sched_get_updown_migrate);
+
+int sched_set_updown_migrate(unsigned int up_migrate,
+        unsigned int down_migrate)
+{
+    if ((up_migrate < down_migrate) || (up_migrate <= 0)
+            || (down_migrate <= 0))
+        return -1;
+
+    capacity_margin = SCHED_FIXEDPOINT_SCALE * 100 / up_migrate;
+
+    pr_debug("%s:Current capacity_margin=%u\n", __func__, capacity_margin);
+    return 0;
+}
+EXPORT_SYMBOL(sched_set_updown_migrate);
+#endif
 
 static inline void update_load_add(struct load_weight *lw, unsigned long inc)
 {
@@ -916,6 +948,12 @@ update_stats_wait_start(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	schedstat_set(se->statistics.wait_start, wait_start);
 }
 
+#if defined(VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.BSP.MM, 2018/05/09
+// Add for cat io_wait stats
+extern void ohm_schedstats_record(int sched_type, int fg, u64 delta);
+#endif /*VENDOR_EDIT*/
+
 static inline void
 update_stats_wait_end(struct cfs_rq *cfs_rq, struct sched_entity *se)
 {
@@ -997,6 +1035,11 @@ update_stats_enqueue_sleeper(struct cfs_rq *cfs_rq, struct sched_entity *se)
 				schedstat_add(se->statistics.iowait_sum, delta);
 				schedstat_inc(se->statistics.iowait_count);
 				trace_sched_stat_iowait(tsk, delta);
+#if defined (VENDOR_EDIT) && defined(CONFIG_OPPO_HEALTHINFO)
+// wenbin.liu@PSW.BSP.MM, 2018/05/09
+// Add for get iowait
+                ohm_schedstats_record(OHM_SCHED_IOWAIT, current_is_fg(), (delta >> 20));
+#endif /*VENDOR_EDIT*/
 			}
 
 			trace_sched_stat_blocked(tsk, delta);
@@ -7791,9 +7834,6 @@ SELECT_TASK_RQ_FAIR(struct task_struct *p, int prev_cpu,
 	int new_cpu = prev_cpu;
 	int want_affine = 0;
 	int sync = wake_flags & WF_SYNC;
-#ifdef CONFIG_PROVE_LOCKING
-	int lockdep_off = 0;
-#endif
 
 	if (should_hmp(cpu) && p->mm && (sd_flag & SD_BALANCE_FORK)) {
 		int hmp_cpu;
@@ -7814,10 +7854,6 @@ SELECT_TASK_RQ_FAIR(struct task_struct *p, int prev_cpu,
 
 	if (energy_aware() && !system_overutilized(cpu))
 		return LB_EAS | select_energy_cpu_brute(p, prev_cpu, sync);
-
-#ifdef CONFIG_PROVE_LOCKING
-	lockdep_off = close_lockdep_if_cpu_offline();
-#endif
 
 	rcu_read_lock();
 	for_each_domain(cpu, tmp) {
@@ -7862,9 +7898,6 @@ SELECT_TASK_RQ_FAIR(struct task_struct *p, int prev_cpu,
 		new_cpu = find_idlest_cpu(sd, p, cpu, prev_cpu, sd_flag);
 	}
 	rcu_read_unlock();
-#ifdef CONFIG_PROVE_LOCKING
-	open_lockdep_if_need(lockdep_off);
-#endif
 
 	if (should_hmp(cpu))
 		new_cpu = LB_HMP | hmp_select_task_rq_fair(sd_flag,
