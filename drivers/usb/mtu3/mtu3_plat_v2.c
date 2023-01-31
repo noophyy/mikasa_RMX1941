@@ -87,7 +87,6 @@ ssize_t musb_cmode_store(struct device *dev, struct device_attribute *attr,
 {
 	unsigned int cmode;
 	struct ssusb_mtk *ssusb;
-	struct extcon_dev *edev;
 
 	if (!dev) {
 		pr_info("dev is null!!\n");
@@ -100,8 +99,6 @@ ssize_t musb_cmode_store(struct device *dev, struct device_attribute *attr,
 		pr_info("ssusb is null!!\n");
 		return count;
 	}
-
-	edev = (&ssusb->otg_switch)->edev;
 
 	if (sscanf(buf, "%ud", &cmode) == 1) {
 		if (cmode >= CABLE_MODE_MAX)
@@ -124,12 +121,8 @@ ssize_t musb_cmode_store(struct device *dev, struct device_attribute *attr,
 				ssusb_set_mailbox(&ssusb->otg_switch,
 					MTU3_VBUS_VALID);
 			} else {	/* IPO bootup, enable USB */
-				if (extcon_get_state(edev, EXTCON_USB_HOST))
-					ssusb_set_mailbox(&ssusb->otg_switch,
-						   MTU3_ID_GROUND);
-				else
-					ssusb_set_mailbox(&ssusb->otg_switch,
-						   MTU3_CMODE_VBUS_VALID);
+				ssusb_set_mailbox(&ssusb->otg_switch,
+					MTU3_CMODE_VBUS_VALID);
 			}
 			msleep(200);
 		}
@@ -308,6 +301,7 @@ const struct attribute_group mtu3_attr_group = {
 /* u2-port0 should be powered on and enabled; */
 int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks)
 {
+#if 0
 	void __iomem *ibase = ssusb->ippc_base;
 	u32 value, check_val;
 	int ret;
@@ -325,7 +319,7 @@ int ssusb_check_clocks(struct ssusb_mtk *ssusb, u32 ex_clks)
 	if (ret) {
 		dev_err(ssusb->dev, "mac2 clock is not stable\n");
 	}
-
+#endif
 	return 0;
 }
 
