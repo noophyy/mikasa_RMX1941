@@ -23,6 +23,7 @@
 #include <linux/usb/audio-v2.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/pm_qos.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -616,7 +617,8 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	snd_usb_set_format_quirk(subs, fmt);
 
 	dev_info(&dev->dev,
-		"format = %dbit, rate = %d, channels = %d, dir = %d\n",
+		"iface=%d:%d format = %dbit rate = %d, channels = %d dir = %d\n",
+		subs->interface, subs->altset_idx,
 		snd_pcm_format_physical_width(subs->pcm_format),
 		subs->cur_rate, subs->channels, subs->direction);
 	return 0;
@@ -816,7 +818,17 @@ static int snd_usb_hw_params(struct snd_pcm_substream *substream,
 	subs->interface = fmt->iface;
 	subs->altset_idx = fmt->altset_idx;
 	subs->need_setup_ep = true;
-
+	/* add the qos request and set the latency */
+	if (pm_qos_request_active(&subs->pm_qos)) {
+		pm_qos_update_request(&subs->pm_qos, US_PER_FRAME);
+		pr_info("%s: (pm_qos @%p) update\n",
+			   __func__, &subs->pm_qos);
+	} else {
+		pm_qos_add_request(&subs->pm_qos,
+			   PM_QOS_CPU_DMA_LATENCY, US_PER_FRAME);
+		pr_info("%s: (pm_qos @%p) request\n",
+			   __func__, &subs->pm_qos);
+	}
 	return 0;
 }
 
@@ -838,6 +850,16 @@ static int snd_usb_hw_free(struct snd_pcm_substream *substream)
 		snd_usb_endpoint_deactivate(subs->data_endpoint);
 		snd_usb_unlock_shutdown(subs->stream->chip);
 	}
+
+	/* remove the qos request */
+	if (pm_qos_request_active(&subs->pm_qos)) {
+		pm_qos_remove_request(&subs->pm_qos);
+		pr_info("%s: (pm_qos @%p) remove\n",
+			   __func__, &subs->pm_qos);
+	} else
+		pr_info("%s: (pm_qos @%p) remove again\n",
+			   __func__, &subs->pm_qos);
+
 	return snd_pcm_lib_free_vmalloc_buffer(substream);
 }
 
@@ -910,10 +932,13 @@ static int snd_usb_pcm_prepare(struct snd_pcm_substream *substream)
 			subs->data_endpoint &&
 			subs->buffer_periods != 4) {
 		runtime->stop_threshold *= 10;
-		pr_info("adjust stop_threshold to %ld frames",
+		dev_info_ratelimited(&subs->dev->dev,
+				"adjust stop_threshold to %ld frames",
 				runtime->stop_threshold);
-
-	}
+	} else
+		dev_info_ratelimited(&subs->dev->dev,
+				"stop_threshold %ld frames",
+				runtime->stop_threshold);
 
 	/* for playback, submit the URBs now; otherwise, the first hwptr_done
 	 * updates for all URBs would happen at the same time when starting */
