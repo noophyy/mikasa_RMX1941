@@ -376,6 +376,8 @@ static void mmc_manage_gp_partitions(struct mmc_card *card, u8 *ext_csd)
 /*
  * Decode extended CSD.
  */
+ /*duwenchao@ODM_HQ.BSP.System.devinfo, 2018/12/07 add devinfo fs*/
+struct mmc_card *card_devinfo;
 static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 {
 	int err = 0, idx;
@@ -383,6 +385,8 @@ static int mmc_decode_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	struct device_node *np;
 	bool broken_hpi = false;
 
+	/*duwenchao@ODM_HQ.BSP.System.devinfo, 2018/12/07 add devinfo fs*/
+	card_devinfo = card;
 	/* Version is coded in the CSD_STRUCTURE byte in the EXT_CSD register */
 	card->ext_csd.raw_ext_csd_structure = ext_csd[EXT_CSD_STRUCTURE];
 	if (card->csd.structure == 3) {
