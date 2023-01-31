@@ -262,6 +262,13 @@ struct display_primary_path_context {
 	cmdqBackupSlotHandle night_light_params;
 	cmdqBackupSlotHandle hrt_idx_id;
 	cmdqBackupSlotHandle request_mmclk_450;
+	#ifdef VENDOR_EDIT
+	/*
+	* Ling.Guo@PSW.MM.Display.LCD.Stability, 2019/01/21,
+	* add for fingerprint notify frigger
+	*/
+	cmdqBackupSlotHandle fpd_fence;
+	#endif
 
 
 	int is_primary_sec;
@@ -410,8 +417,11 @@ int primary_display_hbm_wait(bool en);
 int primary_display_pause(PRIMARY_DISPLAY_CALLBACK callback,
 			  unsigned int user_data);
 int primary_display_switch_dst_mode(int mode);
-int primary_display_switch_aod_mode(int mode);
 int primary_display_get_lcm_index(void);
+#ifdef VENDOR_EDIT
+/* Xinqin.Yang@Cam.Tuning.Display, 2018/11/17, add for multi-lcms */
+int _ioctl_get_lcm_module_info(unsigned long arg);
+#endif /* VENDOR_EDIT */
 int primary_display_force_set_fps(unsigned int keep, unsigned int skip);
 int primary_display_set_fps(int fps);
 int primary_display_get_lcm_max_refresh_rate(void);
@@ -426,7 +436,15 @@ int primary_display_cmdq_set_reg(unsigned int addr, unsigned int val);
 int primary_display_vsync_switch(int method);
 int primary_display_setlcm_cmd(unsigned int *lcm_cmd, unsigned int *lcm_count,
 			       unsigned int *lcm_value);
+#ifndef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Stability, 2019/01/21,
+ * add for mipi clk change
+ */
 int primary_display_ccci_mipi_callback(int en, unsigned int userdata);
+#else
+int primary_display_ccci_mipi_callback(int en, int userdata);
+#endif /*VENDOR_EDIT*/
 
 void _cmdq_insert_wait_frame_done_token_mira(void *handle);
 int primary_display_get_max_layer(void);
@@ -438,6 +456,16 @@ int primary_display_check_test(void);
 void _primary_path_switch_dst_lock(void);
 void _primary_path_switch_dst_unlock(void);
 
+#ifdef VENDOR_EDIT
+/*
+* Yongpeng.Yi@PSW.MM.Display.LCD.Machine, 2018/02/27,
+* add for face fill light node
+*/
+void ffl_set_init(void);
+void ffl_set_enable(unsigned int enable);
+int primary_display_set_aod_mode_nolock(unsigned int mode);
+int notify_display_fpd(bool mode);
+#endif /* VENDOR_EDIT */
 /* AOD */
 enum lcm_power_state primary_display_set_power_state(
 enum lcm_power_state new_state);
@@ -495,7 +523,14 @@ int primary_display_set_scenario(int scenario);
 enum DISP_MODULE_ENUM _get_dst_module_by_lcm(struct disp_lcm_handle *plcm);
 extern void check_mm0_clk_sts(void);
 int primary_display_get_dvfs_last_req(void);
-int primary_display_is_directlink_mode(void);
+#ifdef VENDOR_EDIT
+/*
+* Ling.Guo@PSW.MM.Display.LCD.Stability, 2019/01/21,
+* add for fingerprint notify frigger
+*/
+void fpd_notify_check_trig(void);
+void fpd_notify(void);
+#endif
 
 extern struct lcm_fps_ctx_t lcm_fps_ctx;
 int lcm_fps_ctx_init(struct lcm_fps_ctx_t *fps_ctx);

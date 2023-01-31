@@ -12,7 +12,9 @@
  */
 
 #include "gpio.h"
-
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 struct GPIO_PINCTRL gpio_pinctrl_list_cam[
 			GPIO_CTRL_STATE_MAX_NUM_CAM] = {
 	/* Main */
@@ -26,9 +28,31 @@ struct GPIO_PINCTRL gpio_pinctrl_list_cam[
 	{"ldo_vcamd_0"},
 	{"ldo_vcamio_1"},
 	{"ldo_vcamio_0"},
+	#ifdef VENDOR_EDIT
+	/*weiriqin@Cam.Drv, 20191012, driver porting */
+	{"ldo_vcama1_1"},
+	{"ldo_vcama1_0"},
+	/* Henry.Chang@Camera.Driver add for vcamaf 20191016 */
+	{"ldo_vcamd1_1"},
+	{"ldo_vcamd1_0"},
+	{"ldo_vcamaf_1"},
+	{"ldo_vcamaf_0"},
+	#endif
 };
 
 #ifdef MIPI_SWITCH
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Drv add for 19597 mlck switch 20191016*/
+struct GPIO_PINCTRL gpio_pinctrl_list_switch[
+			GPIO_CTRL_STATE_MAX_NUM_SWITCH] = {
+	{"cam_mipi_switch_en_1"},
+	{"cam_mipi_switch_en_0"},
+	{"cam_mipi_switch_sel_1"},
+	{"cam_mipi_switch_sel_0"},
+	{"cam_mclk_switch_en_1"},
+	{"cam_mclk_switch_en_0"}
+};
+#else
 struct GPIO_PINCTRL gpio_pinctrl_list_switch[
 			GPIO_CTRL_STATE_MAX_NUM_SWITCH] = {
 	{"cam_mipi_switch_en_1"},
@@ -36,6 +60,7 @@ struct GPIO_PINCTRL gpio_pinctrl_list_switch[
 	{"cam_mipi_switch_sel_1"},
 	{"cam_mipi_switch_sel_0"}
 };
+#endif
 #endif
 
 static struct GPIO gpio_instance;
@@ -132,7 +157,12 @@ static enum IMGSENSOR_RETURN gpio_set(
 
 	if (pin < IMGSENSOR_HW_PIN_PDN ||
 #ifdef MIPI_SWITCH
-	    pin > IMGSENSOR_HW_PIN_MIPI_SWITCH_SEL ||
+		#ifdef VENDOR_EDIT
+		/*Henry.Chang@Camera.Drv add for 19597 mlck switch 20191016*/
+		pin > IMGSENSOR_HW_PIN_MCLK_SWITCH_EN ||
+		#else
+		pin > IMGSENSOR_HW_PIN_MIPI_SWITCH_SEL ||
+		#endif
 #else
 	   pin > IMGSENSOR_HW_PIN_DOVDD ||
 #endif
@@ -150,6 +180,12 @@ static enum IMGSENSOR_RETURN gpio_set(
 	else if (pin == IMGSENSOR_HW_PIN_MIPI_SWITCH_SEL)
 		ppinctrl_state = pgpio->ppinctrl_state_switch[
 			GPIO_CTRL_STATE_MIPI_SWITCH_SEL_H + gpio_state];
+    #ifdef VENDOR_EDIT
+	/*Henry.Chang@Camera.Drv add for 19597 mlck switch 20191016*/
+	else if (pin == IMGSENSOR_HW_PIN_MCLK_SWITCH_EN)
+		ppinctrl_state = pgpio->ppinctrl_state_switch[
+			GPIO_CTRL_STATE_MCLK_SWITCH_EN_H + gpio_state];
+    #endif
 	else
 #endif
 	{

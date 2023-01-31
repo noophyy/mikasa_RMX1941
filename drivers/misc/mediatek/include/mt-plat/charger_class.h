@@ -155,6 +155,9 @@ struct charger_ops {
 	int (*enable_usbid_floating)(struct charger_device *dev, bool en);
 	int (*enable_hidden_mode)(struct charger_device *dev, bool en);
 	int (*get_ctd_dischg_status)(struct charger_device *dev, u8 *status);
+	int (*enable_ship)(struct charger_device *);
+	int (*get_charger_type)(struct charger_device *dev, u32 *charger_type);
+	int (*recharger)(struct charger_device *dev, bool flag);
 };
 
 static inline void *charger_dev_get_drvdata(
@@ -313,5 +316,13 @@ extern int unregister_charger_device_notifier(
 extern int charger_dev_notify(
 	struct charger_device *charger_dev, int event);
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.Charger 2020.05.15 add enable_ship_mode API*/
+extern int charger_dev_enable_ship(struct charger_device *chg_dev);
+/*Liu.Yong@RM.CM.BSP.Charger 2020.05.15 add get_charger_type API*/
+extern int charger_dev_get_charger_type(struct charger_device *chg_dev, u32 *charger_type);
+/* Liu.Yong@RM.CM.BSP.Charger 2020.05.15 add recharger API*/
+extern int charger_dev_recharger(struct charger_device *chg_dev, bool flag);
+#endif /*ODM_HQ_EDIT*/
 
 #endif /*LINUX_POWER_CHARGER_CLASS_H*/

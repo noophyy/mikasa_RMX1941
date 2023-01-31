@@ -1353,11 +1353,9 @@ void kbase_pm_clock_on(struct kbase_device *kbdev, bool is_resume)
 		reset_required = kbdev->pm.backend.callback_power_on(kbdev);
 	}
 
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	spin_lock(&kbdev->pm.backend.gpu_powered_lock);
+	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, flags);
 	kbdev->pm.backend.gpu_powered = true;
-	spin_unlock(&kbdev->pm.backend.gpu_powered_lock);
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, flags);
 
 	if (reset_required) {
 		/* GPU state was lost, reset GPU to ensure it is in a
@@ -1409,14 +1407,13 @@ bool kbase_pm_clock_off(struct kbase_device *kbdev, bool is_suspend)
 	/* Ensure that any IRQ handlers have finished */
 	kbase_synchronize_irqs(kbdev);
 
-	spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
-	spin_lock(&kbdev->pm.backend.gpu_powered_lock);
+	spin_lock_irqsave(&kbdev->pm.backend.gpu_powered_lock, flags);
 
 	if (atomic_read(&kbdev->faults_pending)) {
 		/* Page/bus faults are still being processed. The GPU can not
 		 * be powered off until they have completed */
-		spin_unlock(&kbdev->pm.backend.gpu_powered_lock);
-		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+		spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock,
+									flags);
 		return false;
 	}
 
@@ -1424,8 +1421,7 @@ bool kbase_pm_clock_off(struct kbase_device *kbdev, bool is_suspend)
 
 	/* The GPU power may be turned off from this point */
 	kbdev->pm.backend.gpu_powered = false;
-	spin_unlock(&kbdev->pm.backend.gpu_powered_lock);
-	spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+	spin_unlock_irqrestore(&kbdev->pm.backend.gpu_powered_lock, flags);
 
 	if (is_suspend && kbdev->pm.backend.callback_power_suspend)
 		kbdev->pm.backend.callback_power_suspend(kbdev);

@@ -20,6 +20,11 @@
 #include "imgsensor_sensor.h"
 #include "imgsensor_hw.h"
 
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
+
 enum IMGSENSOR_RETURN imgsensor_hw_init(struct IMGSENSOR_HW *phw)
 {
 	struct IMGSENSOR_HW_SENSOR_POWER      *psensor_pwr;
@@ -40,8 +45,22 @@ enum IMGSENSOR_RETURN imgsensor_hw_init(struct IMGSENSOR_HW *phw)
 
 	for (i = 0; i < IMGSENSOR_SENSOR_IDX_MAX_NUM; i++) {
 		psensor_pwr = &phw->sensor_pwr[i];
-
+		#ifdef VENDOR_EDIT
+		/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+		if (is_project(OPPO_19550) || is_project(OPPO_19551) || is_project(OPPO_19553)
+			|| is_project(OPPO_19556) || is_project(OPPO_19597)) {
+			pcust_pwr_cfg = imgsensor_custom_config_P90Q;
+		}
+		/* Tan.Bowen@Camera.Driver 20191108 add for project 19357&19354&19358&19359*/
+		else if (is_project(OPPO_19357) || is_project(OPPO_19354) || is_project(OPPO_19358) || is_project(OPPO_19359)) {
+			pcust_pwr_cfg = imgsensor_custom_config_19357;
+		}
+		else {
+			pcust_pwr_cfg = imgsensor_custom_config;
+		}
+		#else
 		pcust_pwr_cfg = imgsensor_custom_config;
+		#endif
 		while (pcust_pwr_cfg->sensor_idx != i)
 			pcust_pwr_cfg++;
 
@@ -205,6 +224,40 @@ enum IMGSENSOR_RETURN imgsensor_hw_power(
 
 
 	snprintf(str_index, sizeof(str_index), "%d", sensor_idx);
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+	if (is_project(OPPO_19550) || is_project(OPPO_19551)
+		|| is_project(OPPO_19553) || is_project(OPPO_19556)) {
+		imgsensor_hw_power_sequence(
+			phw,
+			sensor_idx,
+			pwr_status, sensor_power_sequence_19551, curr_sensor_name);
+	} else if (is_project(OPPO_19597)) {
+		imgsensor_hw_power_sequence(
+			phw,
+			sensor_idx,
+			pwr_status, sensor_power_sequence_19597, curr_sensor_name);
+	/* Tan.Bowen@Camera.Driver 20191108 add for project 19357&19354&19358&19359*/
+	} else if (is_project(OPPO_19357) || is_project(OPPO_19354)
+		|| is_project(OPPO_19358) || is_project(OPPO_19359)) {
+		imgsensor_hw_power_sequence(
+			phw,
+			sensor_idx,
+			pwr_status, sensor_power_sequence_19357, curr_sensor_name);
+	} else {
+		imgsensor_hw_power_sequence(
+			phw,
+			sensor_idx,
+			pwr_status,
+			platform_power_sequence,
+			str_index);
+
+		imgsensor_hw_power_sequence(
+			phw,
+			sensor_idx,
+			pwr_status, sensor_power_sequence, curr_sensor_name);
+	}
+	#else
 	imgsensor_hw_power_sequence(
 			phw,
 			sensor_idx,
@@ -216,7 +269,7 @@ enum IMGSENSOR_RETURN imgsensor_hw_power(
 			phw,
 			sensor_idx,
 			pwr_status, sensor_power_sequence, curr_sensor_name);
-
+	#endif
 	return IMGSENSOR_RETURN_SUCCESS;
 }
 

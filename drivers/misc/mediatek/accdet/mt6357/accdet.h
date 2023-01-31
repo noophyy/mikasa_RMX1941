@@ -77,6 +77,17 @@ enum accdet_report_state {
 	LINE_OUT_DEVICE = 4,
 };
 
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+/* cable type show in sys/class/switch/h2w/state */
+enum accdet_type_state_value {
+	NO_DEVICE_STATE = 0,
+	HEADSET_MIC_STATE = 11,
+	HEADSET_NO_MIC_STATE = 9,
+	LINE_OUT_DEVICE_STATE = 12,
+};
+#endif /* ODM_HQ_EDIT */
+
 /* accdet status got from accdet FSM  */
 enum accdet_status {
 	PLUG_OUT = 0,

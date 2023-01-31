@@ -19,7 +19,10 @@
 #include "imgsensor_sensor.h"
 #include "imgsensor_cfg_table.h"
 #include "imgsensor_common.h"
-
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 enum IMGSENSOR_HW_POWER_STATUS {
 	IMGSENSOR_HW_POWER_STATUS_OFF,
 	IMGSENSOR_HW_POWER_STATUS_ON
@@ -94,7 +97,15 @@ extern struct IMGSENSOR_HW_POWER_SEQ platform_power_sequence[];
 extern struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[];
 extern enum IMGSENSOR_RETURN (*hw_open[IMGSENSOR_HW_ID_MAX_NUM])
 					(struct IMGSENSOR_HW_DEVICE **);
-
-
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+extern struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence_19551[];
+extern struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence_19597[];
+extern struct IMGSENSOR_HW_CFG imgsensor_custom_config_P90Q[];
+/* Tan.Bowen@Camera.Driver 20191016 add for project 19357*/
+extern struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence_19357[];
+extern struct IMGSENSOR_HW_CFG imgsensor_custom_config_19357[];
+void set_gc02m0_flag(enum IMGSENSOR_SENSOR_IDX sensor_idx);
+#endif
 #endif
 

@@ -28,6 +28,47 @@ enum LCM_DSI_MODE_CON lcm_dsi_mode;
 #define LCD_HW_ID_STATUS_ERROR  0x03
 
 struct LCM_DRIVER *lcm_driver_list[] = {
+//#ifdef VENDOR_EDIT
+/* Ling.Guo@PSW.MM.Display.LCD.Machine 2019/01/08, Add for lcm ic samsung*/
+#if defined(OPPO18073_SAMSUNG_AMS641RW01_1080P_DSI_CMD)
+	&oppo18073_samsung_ams641rw01_1080p_dsi_cmd_lcm_drv,
+#endif
+
+/* Ling.Guo@PSW.MM.Display.LCD.Machine 2019/01/08, Add for lcm ic samsung*/
+#if defined(OPPO19011_SAMSUNG_AMS641RW01_1080P_DSI_CMD)
+	&oppo19011_samsung_ams641rw01_1080p_dsi_cmd_lcm_drv,
+#endif
+
+/* Ling.Guo@PSW.MM.Display.LCD.Machine 2019/10/30, Add for lcm ic samsung*/
+#if defined(OPPO19357_SAMSUNG_AMS644VA04_1080P_DSI_CMD)
+	&oppo19357_samsung_ams644va04_1080p_dsi_cmd_lcm_drv,
+#endif
+
+/* Ling.Guo@PSW.MM.Display.LCD.Machine 2019/11/02, Add for lcm ic samsung*/
+#if defined(OPPO19551_SAMSUNG_AMS644VK01_1080P_DSI_CMD)
+	&oppo19551_samsung_ams644vk01_1080p_dsi_cmd_lcm_drv,
+#endif
+//#endif /* VENDOR_EDIT */
+
+#ifdef ODM_HQ_EDIT
+/* Wangxianfei@ODM.Multimedia.LCD  2018/11/29 add for LCD bring up */
+#if defined(ILI9881C_HD_DSI_VDO_TXD_BOE_ZAL1890)
+	&ili9881c_hd_dsi_vdo_txd_boe_zal1890_lcm_drv,
+#endif
+
+#if defined (ILI9881C_HD_DSI_VDO_LS_INX_ZAL1890)
+	&ili9881c_hd_dsi_vdo_ls_inx_zal1890_lcm_drv,
+#endif
+
+#if defined (HX8394F_HD_DSI_VDO_HLT_HSD_ZAL1890)
+	&hx8394f_hd_dsi_vdo_hlt_hsd_zal1890_lcm_drv,
+#endif
+
+#if defined(ILI9881C_HD_DSI_VDO_INX_BOE_ZAL1890)
+	&ili9881c_hd_dsi_vdo_inx_boe_zal1890_lcm_drv,
+#endif
+#endif
+
 #if defined(NT36672AH_HDP_DSI_VDO_TCL_CSOT)
 	&nt36672ah_hdp_dsi_vdo_tcl_csot_lcm_drv,
 #endif
@@ -953,10 +994,6 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 	&nt35695_fhd_dsi_vdo_truly_rt5081_hdp_1560_lcm_drv,
 #endif
 
-#if defined(NT35695_FHD_DSI_VDO_TRULY_RT5081_HDP_1680)
-	&nt35695_fhd_dsi_vdo_truly_rt5081_hdp_1680_lcm_drv,
-#endif
-
 #if defined(NT35695_FHD_DSI_VDO_TRULY_RT5081_HDP_20_9)
 	&nt35695_fhd_dsi_vdo_truly_rt5081_hdp_20_9_lcm_drv,
 #endif
@@ -1083,10 +1120,6 @@ struct LCM_DRIVER *lcm_driver_list[] = {
 
 #if defined(NT35695B_FHD_DSI_VDO_AUO_RT5081_HDP_1560)
 	&nt35695B_fhd_dsi_vdo_auo_rt5081_hdp_1560_lcm_drv,
-#endif
-
-#if defined(NT35695B_FHD_DSI_VDO_AUO_RT5081_HDP_1680)
-	&nt35695B_fhd_dsi_vdo_auo_rt5081_hdp_1680_lcm_drv,
 #endif
 
 #if defined(NT35695B_FHD_DSI_VDO_AUO_RT5081_HDP_20_9)

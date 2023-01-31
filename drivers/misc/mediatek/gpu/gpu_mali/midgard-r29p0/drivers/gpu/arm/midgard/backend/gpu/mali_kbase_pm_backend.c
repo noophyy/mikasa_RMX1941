@@ -430,6 +430,9 @@ int kbase_hwaccess_pm_powerup(struct kbase_device *kbdev,
 	mutex_unlock(&kbdev->pm.lock);
 	mutex_unlock(&js_devdata->runpool_mutex);
 
+	/* Idle the GPU and/or cores, if the policy wants it to */
+	kbase_pm_context_idle(kbdev);
+
 	return 0;
 }
 

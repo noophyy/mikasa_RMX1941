@@ -13,7 +13,10 @@
 
 #include "regulator.h"
 
-
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 static const int regulator_voltage[] = {
 	REGULATOR_VOLTAGE_0,
 	REGULATOR_VOLTAGE_1000,
@@ -32,10 +35,25 @@ struct REGULATOR_CTRL regulator_control[REGULATOR_TYPE_MAX_NUM] = {
 	{"vcama"},
 	{"vcamd"},
 	{"vcamio"},
+	#ifdef VENDOR_EDIT
+	/* Henry.Chang@Camera.Driver add for vcamaf 20191016 */
+	{"vcamd1"},
+	{"vcamaf"},
+	#endif
 };
 
-static struct REGULATOR reg_instance;
+#ifdef VENDOR_EDIT
+/* Tan.Bowen@Camera.Driver 20191016 add for project 19357*/
+static struct regulator *gVCamA = NULL;
 
+/*Henry.Chang@Camera.Driver add for P90Q AF_Lens 20191022*/
+struct regulator *regulator_get_regVCAMAF(void)
+{
+	struct IMGSENSOR *pimgsensor = &gimgsensor;
+	return regulator_get(&((pimgsensor->hw.common.pplatform_device)->dev), "vcamaf");
+}
+#endif
+static struct REGULATOR reg_instance;
 static enum IMGSENSOR_RETURN regulator_init(
 	void *pinstance,
 	struct IMGSENSOR_HW_DEVICE_COMMON *pcommon)
@@ -93,6 +111,47 @@ static enum IMGSENSOR_RETURN regulator_release(void *pinstance)
 	return IMGSENSOR_RETURN_SUCCESS;
 }
 
+#ifdef VENDOR_EDIT
+/* Tan.Bowen@Camera.Driver 20191016 add for project 19357*/
+static int kdVAPowerOn(enum IMGSENSOR_HW_PIN_STATE pin_state)
+{
+    struct IMGSENSOR *pimgsensor = &gimgsensor;
+    gVCamA = regulator_get(&((pimgsensor->hw.common.pplatform_device)->dev), "vcama");
+
+    if (pin_state == IMGSENSOR_HW_PIN_STATE_LEVEL_0)
+    {
+        if (regulator_set_voltage(gVCamA,
+            regulator_voltage[IMGSENSOR_HW_PIN_STATE_LEVEL_0],
+            regulator_voltage[IMGSENSOR_HW_PIN_STATE_LEVEL_0]))
+        {
+            PK_PR_ERR("[regulator]fail to regulator_set_voltage, powerId:%d\n",
+            regulator_voltage[IMGSENSOR_HW_PIN_STATE_LEVEL_0]);
+        }
+        if (regulator_disable(gVCamA))
+        {
+            PK_PR_ERR("[regulator]fail to regulator_disable gVCamIO\n");
+            return IMGSENSOR_RETURN_ERROR;
+        }
+    }
+    else
+    {
+        if (regulator_set_voltage(gVCamA,
+            regulator_voltage[pin_state - IMGSENSOR_HW_PIN_STATE_LEVEL_0],
+            regulator_voltage[pin_state - IMGSENSOR_HW_PIN_STATE_LEVEL_0]))
+            {
+                PK_PR_ERR("[regulator]fail to regulator_set_voltage, powerId:%d\n",
+                regulator_voltage[pin_state - IMGSENSOR_HW_PIN_STATE_LEVEL_0]);
+            }
+        if (regulator_enable(gVCamA))
+            {
+                PK_PR_ERR("[regulator]fail to regulator_enable\n");
+                return IMGSENSOR_RETURN_ERROR;
+            }
+    }
+    return IMGSENSOR_RETURN_SUCCESS;
+}
+#endif
+
 static enum IMGSENSOR_RETURN regulator_set(
 	void *pinstance,
 	enum IMGSENSOR_SENSOR_IDX   sensor_idx,
@@ -104,12 +163,32 @@ static enum IMGSENSOR_RETURN regulator_set(
 	int reg_type_offset;
 	atomic_t             *enable_cnt;
 
-
+	#ifdef VENDOR_EDIT
+	/* Henry.Chang@Camera.Driver add for vcamaf 20191016 */
+	if (pin > IMGSENSOR_HW_PIN_AFVDD   ||
+		pin < IMGSENSOR_HW_PIN_AVDD    ||
+		pin_state < IMGSENSOR_HW_PIN_STATE_LEVEL_0 ||
+		pin_state >= IMGSENSOR_HW_PIN_STATE_LEVEL_HIGH)
+		return IMGSENSOR_RETURN_ERROR;
+	#else
 	if (pin > IMGSENSOR_HW_PIN_DOVDD   ||
 	    pin < IMGSENSOR_HW_PIN_AVDD    ||
 	    pin_state < IMGSENSOR_HW_PIN_STATE_LEVEL_0 ||
 	    pin_state >= IMGSENSOR_HW_PIN_STATE_LEVEL_HIGH)
 		return IMGSENSOR_RETURN_ERROR;
+	#endif
+
+    #ifdef VENDOR_EDIT
+	/* Tan.Bowen@Camera.Driver 20191016 add for project 19357&19354&19358&19359*/
+	if ((is_project(OPPO_19357) || is_project(OPPO_19354) || is_project(OPPO_19358) || is_project(OPPO_19359))
+		&& (sensor_idx == IMGSENSOR_SENSOR_IDX_SUB || sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN2 || sensor_idx == IMGSENSOR_SENSOR_IDX_MAIN3) && (pin == IMGSENSOR_HW_PIN_AVDD))
+	{
+		int ret = kdVAPowerOn(pin_state);
+		if (ret)
+			PK_PR_ERR("kdVAPowerOn failed ret:%d", ret);
+		return ret;
+	}
+    #endif
 
 	reg_type_offset = REGULATOR_TYPE_VCAMA;
 

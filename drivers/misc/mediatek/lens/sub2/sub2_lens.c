@@ -39,8 +39,16 @@
 
 #include "lens_info.h"
 #include "lens_list.h"
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for sub2AF 20191006*/
+#define AF_DRVNAME "SUBAF"
+#else
 #define AF_DRVNAME "SUB2AF"
+#endif
 
 #if defined(CONFIG_MTK_LEGACY)
 #define I2C_CONFIG_SETTING 1
@@ -51,7 +59,12 @@
 #endif
 
 #if I2C_CONFIG_SETTING == 1
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for sub2AF 20191006*/
+#define LENS_I2C_BUSNUM 6
+#else
 #define LENS_I2C_BUSNUM 0
+#endif
 #define I2C_REGISTER_ID 0x28
 #endif
 
@@ -84,6 +97,13 @@ static struct stAF_OisPosInfo OisPosInfo;
 /* ------------------------- */
 
 static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for sub2AF 20191006*/
+	{1, AFDRV_SEM1215SAF, SEM1215SAF_SetI2Cclient, SEM1215SAF_Ioctl,
+	 SEM1215SAF_Release, SEM1215SAF_GetFileName, NULL, SEM1215SAF_OisGetHallInfo},
+	{1, AFDRV_BU64253TEAF, BU64253TEAF_SetI2Cclient, BU64253TEAF_Ioctl,
+	 BU64253TEAF_Release, BU64253TEAF_GetFileName, NULL, NULL},
+#endif
 #if 0
 	{1, AFDRV_AK7371AF, AK7371AF_SetI2Cclient, AK7371AF_Ioctl,
 	 AK7371AF_Release, AK7371AF_GetFileName, NULL},
@@ -109,10 +129,6 @@ void SUB2AF_PowerDown(void)
 
 	if (g_pstAF_I2Cclient != NULL) {
 		LOG_INF("+\n");
-#if 0
-		AK7371AF_PowerDown(g_pstAF_I2Cclient,
-					&g_s4AF_Opened);
-#endif
 		LOG_INF("-\n");
 	}
 }
@@ -321,10 +337,33 @@ static long AF_Ioctl(struct file *a_pstFile, unsigned int a_u4Command,
 
 	case AFIOC_G_OISPOSINFO:
 		if (g_pstAF_CurDrv) {
+		#ifdef VENDOR_EDIT
+		/*Henry.Chang@Cam.Drv add for sub2AF 20191006*/
+		if (g_pstAF_CurDrv->pAF_OisGetHallInfo) {
+				__user struct stAF_OisPosInfo *pstOisPosInfo =
+					(__user struct stAF_OisPosInfo *)
+						a_u4Param;
+
+				g_pstAF_CurDrv->pAF_OisGetHallInfo((void *)(&OisPosInfo));
+
+				if (copy_to_user(
+						pstOisPosInfo, &OisPosInfo,
+						sizeof(struct stAF_OisPosInfo)))
+					LOG_INF("copy to user failed\n");
+
+				g_OisPosIdx = 0;
+				memset(&OisPosInfo, 0, sizeof(OisPosInfo));
+			}
+		#else
 			if (g_pstAF_CurDrv->pAF_OisGetHallPos) {
 				__user struct stAF_OisPosInfo *pstOisPosInfo =
 					(__user struct stAF_OisPosInfo *)
 						a_u4Param;
+
+				if (ois_workqueue == NULL) {
+					ois_workqueue =
+					create_singlethread_workqueue("ois_work");
+				}
 
 				mutex_lock(&ois_mutex);
 
@@ -346,6 +385,7 @@ static long AF_Ioctl(struct file *a_pstFile, unsigned int a_u4Command,
 					g_EnableTimer = 1;
 				}
 			}
+			#endif
 		}
 		break;
 

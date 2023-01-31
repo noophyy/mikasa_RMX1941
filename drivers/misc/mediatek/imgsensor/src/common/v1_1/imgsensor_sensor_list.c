@@ -13,7 +13,10 @@
 
 #include "kd_imgsensor.h"
 #include "imgsensor_sensor_list.h"
-
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 /* Add Sensor Init function here
  * Note:
  * 1. Add by the resolution from ""large to small"", due to large sensor
@@ -22,12 +25,69 @@
  * 2. This file should be the same as
  *    mediatek\custom\common\hal\imgsensor\src\sensorlist.cpp
  */
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
 struct IMGSENSOR_SENSOR_LIST
-	gimgsensor_sensor_list[MAX_NUM_OF_SUPPORT_SENSOR] = {
-	/*IMX*/
+    gimgsensor_sensor_list_P90Q[MAX_NUM_OF_SUPPORT_SENSOR] = {
+#if defined(S5KGW1_MIPI_RAW)
+{S5KGW1_SENSOR_ID, SENSOR_DRVNAME_S5KGW1_MIPI_RAW, S5KGW1_MIPI_RAW_SensorInit},
+#endif
+#if defined(S5KGH1_MIPI_RAW)
+{S5KGH1_SENSOR_ID, SENSOR_DRVNAME_S5KGH1_MIPI_RAW, S5KGH1_MIPI_RAW_SensorInit},
+#endif
+#if defined(S5K3M5_MIPI_RAW)
+{S5K3M5_SENSOR_ID, SENSOR_DRVNAME_S5K3M5_MIPI_RAW, S5K3M5_MIPI_RAW_SensorInit},
+#endif
+#if defined(S5K3M5SX_MIPI_RAW)
+{S5K3M5SX_SENSOR_ID, SENSOR_DRVNAME_S5K3M5SX_MIPI_RAW, S5K3M5SX_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC8054_MIPI_RAW)
+{GC8054_SENSOR_ID, SENSOR_DRVNAME_GC8054_MIPI_RAW, GC8054_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC8054F_MIPI_RAW)
+{GC8054F_SENSOR_ID, SENSOR_DRVNAME_GC8054F_MIPI_RAW, GC8054F_MIPI_RAW_SensorInit},
+#endif
+#if defined(HI846_MIPI_RAW)
+{HI846_SENSOR_ID, SENSOR_DRVNAME_HI846_MIPI_RAW, HI846_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC2375H_MIPI_RAW)
+{GC2375H_SENSOR_ID, SENSOR_DRVNAME_GC2375H_MIPI_RAW, GC2375H_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC02M0_MIPI_MONO)
+{GC02M0_SENSOR_ID, SENSOR_DRVNAME_GC02M0_MIPI_MONO, GC02M0_MIPI_MONO_SensorInit},
+#endif
+#if defined(GC02M0F_MIPI_MONO)
+{GC02M0F_SENSOR_ID, SENSOR_DRVNAME_GC02M0F_MIPI_MONO, GC02M0F_MIPI_MONO_SensorInit},
+#endif
+/* Tan.Bowen@Camera.Driver 20191016 add for project 19357*/
 #if defined(IMX586_MIPI_RAW)
 {IMX586_SENSOR_ID, SENSOR_DRVNAME_IMX586_MIPI_RAW, IMX586_MIPI_RAW_SensorInit},
 #endif
+#if defined(S5KGD1SP_MIPI_RAW)
+{S5KGD1SP_SENSOR_ID, SENSOR_DRVNAME_S5KGD1SP_MIPI_RAW, S5KGD1SP_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC5035_MIPI_RAW)
+{GC5035_SENSOR_ID, SENSOR_DRVNAME_GC5035_MIPI_RAW, GC5035_MIPI_RAW_SensorInit},
+#endif
+    /*  ADD sensor driver before this line */
+    {0, {0}, NULL}, /* end of list */
+};
+#endif
+struct IMGSENSOR_SENSOR_LIST
+	gimgsensor_sensor_list[MAX_NUM_OF_SUPPORT_SENSOR] = {
+	/*IMX*/
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Driver 20181107 add for P80_18151 imgsensor driver*/
+#if defined(IMX586_MIPI_RAW)
+{IMX586_SENSOR_ID, SENSOR_DRVNAME_IMX586_MIPI_RAW, IMX586_MIPI_RAW_SensorInit},
+#endif
+#if defined(S5KGD1SP_MIPI_RAW)
+{S5KGD1SP_SENSOR_ID, SENSOR_DRVNAME_S5KGD1SP_MIPI_RAW, S5KGD1SP_MIPI_RAW_SensorInit},
+#endif
+#if defined(GC5035_MIPI_RAW)
+{GC5035_SENSOR_ID, SENSOR_DRVNAME_GC5035_MIPI_RAW, GC5035_MIPI_RAW_SensorInit},
+#endif
+#else
 #if defined(IMX519_MIPI_RAW)
 {IMX519_SENSOR_ID, SENSOR_DRVNAME_IMX519_MIPI_RAW, IMX519_MIPI_RAW_SensorInit},
 #endif
@@ -482,7 +542,7 @@ struct IMGSENSOR_SENSOR_LIST
 #if defined(T8EV5_YUV)
 {T8EV5_SENSOR_ID, SENSOR_DRVNAME_T8EV5_YUV, T8EV5_YUV_SensorInit},
 #endif
-
+#endif
 	/*  ADD sensor driver before this line */
 	{0, {0}, NULL}, /* end of list */
 };

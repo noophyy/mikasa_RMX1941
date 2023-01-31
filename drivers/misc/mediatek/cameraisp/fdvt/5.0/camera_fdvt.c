@@ -2193,6 +2193,7 @@ static signed int FDVT_WaitIrq(FDVT_WAIT_IRQ_STRUCT *WaitIrq)
 		log_err("interrupted by system, timeout(%d),irq Type/User/Sts/whichReq/Pid(0x%x/%d/0x%x/%d/%d)\n",
 		Timeout, WaitIrq->Type, WaitIrq->UserKey,
 		WaitIrq->Status, whichReq, WaitIrq->ProcessID);
+		mt_irq_dump_status(FDVTInfo.IrqNum);
 		/* actually it should be -ERESTARTSYS */
 		Ret = -ERESTARTSYS;
 		goto EXIT;
@@ -2223,6 +2224,7 @@ static signed int FDVT_WaitIrq(FDVT_WAIT_IRQ_STRUCT *WaitIrq)
 		if (WaitIrq->bDumpReg)
 			FDVT_DumpReg();
 
+		mt_irq_dump_status(FDVTInfo.IrqNum);
 		Ret = -EFAULT;
 		goto EXIT;
 	} else {
@@ -2443,6 +2445,7 @@ static long FDVT_ioctl(struct file *pFile,
 				log_err("FDVT_WAIT_IRQ copy_from_user failed");
 				Ret = -EFAULT;
 			}
+			log_inf("FDVT_WAIT_IRQ Return\n");
 			break;
 		}
 	case FDVT_CLEAR_IRQ:
@@ -3704,6 +3707,8 @@ static signed int FDVT_probe(struct platform_device *pDev)
 
 	/* get IRQ ID and request IRQ */
 	FDVT_dev->irq = irq_of_parse_and_map(pDev->dev.of_node, 0);
+
+	FDVTInfo.IrqNum = FDVT_dev->irq;
 
 	if (FDVT_dev->irq > 0) {
 		/* Get IRQ Flag from device node */

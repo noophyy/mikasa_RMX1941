@@ -199,7 +199,12 @@
 
 #define BATTERY_TMP_TO_DISABLE_GM30 -50
 #define BATTERY_TMP_TO_DISABLE_NAFG -35
+#ifndef VENDOR_EDIT
+/* Lizhijie@BSP.CHG.Basic, 2019/11/20, return -30C when battery removed */
 #define DEFAULT_BATTERY_TMP_WHEN_DISABLE_NAFG 25
+#else
+#define DEFAULT_BATTERY_TMP_WHEN_DISABLE_NAFG -30
+#endif
 #define BATTERY_TMP_TO_ENABLE_NAFG -20
 /* #define GM30_DISABLE_NAFG */
 

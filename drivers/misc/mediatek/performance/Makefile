@@ -37,9 +37,3 @@ obj-$(CONFIG_MTK_EARA_THERMAL) += eara_thermal/
 endif
 
 obj-$(CONFIG_MTK_LOAD_TRACKER) += load_track/
-
-# legacy touch boost
-ifneq (,$(filter $(CONFIG_MTK_PLATFORM), "mt6757"))
-	obj-y += perfmgr/mt6757/
-endif
-

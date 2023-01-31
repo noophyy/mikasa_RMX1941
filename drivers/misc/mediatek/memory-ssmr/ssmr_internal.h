@@ -15,7 +15,6 @@
 
 #if defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT) ||\
 	defined(CONFIG_MTK_TEE_GP_SUPPORT) ||\
-	defined(CONFIG_TRUSTONIC_TEE_SUPPORT) ||\
 	defined(CONFIG_MTK_IRIS_SUPPORT) ||\
 	defined(CONFIG_MTK_CAM_SECURITY_SUPPORT)
 #define SSMR_SECMEM_REGION_ENABLE
@@ -133,8 +132,7 @@ struct SSMR_Region {
 
 static struct SSMR_Feature _ssmr_feats[__MAX_NR_SSMR_FEATURES] = {
 #if defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT) ||\
-	defined(CONFIG_MTK_TEE_GP_SUPPORT) ||\
-	defined(CONFIG_TRUSTONIC_TEE_SUPPORT)
+	defined(CONFIG_MTK_TEE_GP_SUPPORT)
 	[SSMR_FEAT_SVP] = {
 		.dt_prop_name = "svp-size",
 		.feat_name = "svp",

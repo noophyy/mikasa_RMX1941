@@ -17,10 +17,6 @@
 #include "io_ctrl.h"
 #endif
 
-#if defined(LEGACY_TOUCH_BOOST_SUPPORT)
-#include "touch_boost.h"
-#endif
-
 #include <mt-plat/mtk_perfobserver.h>
 
 #define TAG "PERF_IOCTL"
@@ -401,11 +397,9 @@ static long device_ioctl(struct file *filp,
 
 #else
 	case FPSGO_TOUCH:
+		/* FALLTHROUGH */
 	case FPSGO_QUEUE:
-#if defined(LEGACY_TOUCH_BOOST_SUPPORT)
-		touch_boost_ioctl(cmd, msgKM->frame_time);
-#endif /* LEGACY_TOUCH_BOOST_SUPPORT */
-		break;
+		/* FALLTHROUGH */
 	case FPSGO_DEQUEUE:
 		/* FALLTHROUGH */
 	case FPSGO_QUEUE_CONNECT:
@@ -471,10 +465,6 @@ int init_perfctl(struct proc_dir_entry *parent)
 		ret_val = -ENOMEM;
 		goto out_wq;
 	}
-
-#if defined(LEGACY_TOUCH_BOOST_SUPPORT)
-	init_touch_boost();
-#endif /* LEGACY_TOUCH_BOOST_SUPPORT */
 
 	pr_debug(TAG"init perf_ioctl driver done\n");
 

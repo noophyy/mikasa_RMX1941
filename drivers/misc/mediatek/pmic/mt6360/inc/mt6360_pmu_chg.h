@@ -39,8 +39,6 @@ struct mt6360_chg_platform_data {
 /* MT6360_PMU_CHG_CTRL1 : 0x11 */
 #define MT6360_MASK_FORCE_SLEEP	BIT(3)
 #define MT6360_SHFT_FORCE_SLEEP	(3)
-#define MT6360_MASK_HZ_EN	BIT(2)
-#define MT6360_SHFT_HZ_EN	(2)
 #define MT6360_MASK_OPA_MODE	BIT(0)
 #define MT6360_SHFT_OPA_MODE	(0)
 
@@ -103,6 +101,12 @@ struct mt6360_chg_platform_data {
 /* MT6360_PMU_DEVICE_TYPE : 0x22 */
 #define MT6360_MASK_USBCHGEN	BIT(7)
 #define MT6360_SHFT_USBCHGEN	(7)
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/30, sjc Add for charging */
+#define MT6360_MASK_DCD_TIMEOUT		(0x30)
+#define MT6360_SHIFT_DCD_TIMEOUT	4
+#endif
+
 #define MT6360_MASK_DCDTOUTEN	BIT(6)
 #define MT6360_SHFT_DCDTOUTEN	6
 

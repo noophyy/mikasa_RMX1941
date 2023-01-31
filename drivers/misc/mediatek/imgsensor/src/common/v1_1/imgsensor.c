@@ -36,6 +36,11 @@
 #include "ccu_imgsensor_if.h"
 #endif
 
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
+
 #include "kd_camera_typedef.h"
 #include "kd_imgsensor.h"
 #include "kd_imgsensor_define.h"
@@ -88,6 +93,62 @@ void IMGSENSOR_PROFILE(struct timeval *ptv, char *tag)
 }
 #endif
 
+#ifdef VENDOR_EDIT
+/* Add by LiuBin for register device info at 20160616 */
+#include <soc/oppo/device_info.h>
+#define DEVICE_MANUFACUTRE_NA		    "None"
+#define DEVICE_MANUFACUTRE_SUNNY        "Sunny"
+#define DEVICE_MANUFACUTRE_TRULY        "Truly"
+#define DEVICE_MANUFACUTRE_SEMCO        "Semco"
+#define DEVICE_MANUFACUTRE_LITEON       "Liteon"
+#define DEVICE_MANUFACUTRE_QTECH        "Qtech"
+#define DEVICE_MANUFACUTRE_OFILM        "Ofilm"
+#define DEVICE_MANUFACUTRE_SHINE        "Shine"
+
+#define IMGSENSOR_MODULE_ID_SUNNY       0x01
+#define IMGSENSOR_MODULE_ID_TRULY       0x02
+#define IMGSENSOR_MODULE_ID_SEMCO       0x03
+#define IMGSENSOR_MODULE_ID_LITEON      0x04
+#define IMGSENSOR_MODULE_ID_QTECH       0x05
+#define IMGSENSOR_MODULE_ID_OFILM       0x06
+#define IMGSENSOR_MODULE_ID_SHINE       0x07
+void register_imgsensor_deviceinfo(char *name, char *version, u8 module_id)
+{
+    char *manufacture;
+    if (name == NULL || version == NULL)
+    {
+        PK_PR_ERR("name or version is NULL");
+        return;
+    }
+    switch (module_id)
+    {
+        case IMGSENSOR_MODULE_ID_SUNNY:  /* Sunny */
+            manufacture = DEVICE_MANUFACUTRE_SUNNY;
+            break;
+        case IMGSENSOR_MODULE_ID_TRULY:  /* Truly */
+            manufacture = DEVICE_MANUFACUTRE_TRULY;
+            break;
+        case IMGSENSOR_MODULE_ID_SEMCO:  /* Semco */
+            manufacture = DEVICE_MANUFACUTRE_SEMCO;
+            break;
+        case IMGSENSOR_MODULE_ID_LITEON:  /* Lite-ON */
+            manufacture = DEVICE_MANUFACUTRE_LITEON;
+            break;
+        case IMGSENSOR_MODULE_ID_QTECH:  /* Q-Tech */
+            manufacture = DEVICE_MANUFACUTRE_QTECH;
+            break;
+        case IMGSENSOR_MODULE_ID_OFILM:  /* O-Film */
+            manufacture = DEVICE_MANUFACUTRE_OFILM;
+            break;
+        case IMGSENSOR_MODULE_ID_SHINE:  /* Shine */
+            manufacture = DEVICE_MANUFACUTRE_SHINE;
+            break;
+        default:
+            manufacture = DEVICE_MANUFACUTRE_NA;
+    }
+    register_device_proc(name, version, manufacture);
+}
+#endif
 /******************************************************************************
  * sensor function adapter
  ******************************************************************************/
@@ -115,7 +176,7 @@ static void imgsensor_mutex_lock(struct IMGSENSOR_SENSOR_INST *psensor_inst)
 	if (psensor_inst->status.arch) {
 		mutex_lock(&psensor_inst->sensor_mutex);
 	} else {
-		mutex_lock(&gimgsensor_mutex);
+		mutex_lock(&psensor_inst->sensor_mutex);
 		imgsensor_i2c_set_device(&psensor_inst->i2c_cfg);
 	}
 #else
@@ -128,8 +189,10 @@ static void imgsensor_mutex_unlock(struct IMGSENSOR_SENSOR_INST *psensor_inst)
 #ifdef IMGSENSOR_LEGACY_COMPAT
 	if (psensor_inst->status.arch)
 		mutex_unlock(&psensor_inst->sensor_mutex);
-	else
-		mutex_unlock(&gimgsensor_mutex);
+	else {
+		imgsensor_i2c_set_device(NULL);
+		mutex_unlock(&psensor_inst->sensor_mutex);
+	}
 #else
 	mutex_lock(&psensor_inst->sensor_mutex);
 #endif
@@ -188,7 +251,7 @@ MINT32 imgsensor_sensor_open(struct IMGSENSOR_SENSOR *psensor)
 
 #ifdef CONFIG_MTK_CCU
 		ccuSensorInfo.slave_addr =
-		    (psensor_inst->i2c_cfg.pinst->msg->addr << 1);
+		    (psensor_inst->i2c_cfg.msg->addr << 1);
 		ccuSensorInfo.sensor_name_string =
 		    (char *)(psensor_inst->psensor_list->name);
 		pi2c_client = psensor_inst->i2c_cfg.pinst->pi2c_client;
@@ -408,7 +471,16 @@ static void imgsensor_init_sensor_list(void)
 	const char *penable_sensor;
 	struct device_node *of_node
 		= of_find_compatible_node(NULL, NULL, "mediatek,imgsensor");
-
+	#ifdef VENDOR_EDIT
+	/*Henry Chang@Camera.Drv add for P90Q 20191010*/
+	/* Tan.Bowen@Camera.Driver 20191108 add for project 19357&19354&19358&19359*/
+	if (is_project(OPPO_19550) || is_project(OPPO_19551) || is_project(OPPO_19553)
+		|| is_project(OPPO_19556) || is_project(OPPO_19597)
+		|| is_project(OPPO_19357) || is_project(OPPO_19354)
+		|| is_project(OPPO_19358) || is_project(OPPO_19359)) {
+		psensor_list =  gimgsensor_sensor_list_P90Q;
+	}
+	#endif
 	ret = of_property_read_string(of_node, "cust-sensor", &penable_sensor);
 	if (ret < 0) {
 		PK_DBG("Property cust-sensor not defined\n");
@@ -481,8 +553,26 @@ int imgsensor_set_driver(struct IMGSENSOR_SENSOR *psensor)
 	struct IMGSENSOR_SENSOR_INST *psensor_inst = &psensor->inst;
 
 	imgsensor_mutex_init(psensor_inst);
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+	if (is_project(OPPO_19550) || is_project(OPPO_19551) || is_project(OPPO_19553)
+		|| is_project(OPPO_19556) || is_project(OPPO_19597) ) {
+		imgsensor_i2c_init(&psensor_inst->i2c_cfg,
+			imgsensor_custom_config_P90Q[psensor_inst->sensor_idx].i2c_dev);
+	}
+	/* Tan.Bowen@Camera.Driver 20191108 add for project 19357&19354&19358&19359*/
+	else if (is_project(OPPO_19357) || is_project(OPPO_19354) || is_project(OPPO_19358) || is_project(OPPO_19359)){
+		imgsensor_i2c_init(&psensor_inst->i2c_cfg,
+			imgsensor_custom_config_19357[psensor_inst->sensor_idx].i2c_dev);
+	}
+	else {
+		imgsensor_i2c_init(&psensor_inst->i2c_cfg,
+			imgsensor_custom_config[psensor_inst->sensor_idx].i2c_dev);
+	}
+	#else
 	imgsensor_i2c_init(&psensor_inst->i2c_cfg,
 		imgsensor_custom_config[psensor_inst->sensor_idx].i2c_dev);
+	#endif
 	imgsensor_i2c_filter_msg(&psensor_inst->i2c_cfg, true);
 
 
@@ -844,6 +934,29 @@ static inline int adopt_CAMERA_HW_FeatureControl(void *pBuf)
 
 	/*in case that some structure are passed from user sapce by ptr */
 	switch (pFeatureCtrl->FeatureId) {
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+	case SENSOR_FEATURE_GET_MODULE_INFO:
+	case SENSOR_FEATURE_GET_MODULE_SN:
+	{
+		ret = imgsensor_sensor_feature_control(psensor,
+				   pFeatureCtrl->FeatureId,
+				   (unsigned char *)pFeaturePara,
+				   (unsigned int *)&FeatureParaLen);
+		break;
+	}
+	case SENSOR_FEATURE_SET_SENSOR_OTP:
+	{
+		ret = imgsensor_sensor_feature_control(psensor,
+				  SENSOR_FEATURE_SET_SENSOR_OTP,
+				  (unsigned char *)pFeaturePara,
+				  (unsigned int *)&FeatureParaLen);
+		PK_INFO("SET_SENSOR_OTP return ret: %d\n", ret);
+		if (ret != 0)
+			return -EFAULT;
+		break;
+	}
+	#endif
 	case SENSOR_FEATURE_SET_MCLK_DRIVE_CURRENT:
 	{
 		MUINT32 __current = (*(MUINT32 *)pFeaturePara);

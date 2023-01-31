@@ -145,6 +145,8 @@ static inline int typec_enable_vconn(struct tcpc_device *tcpc_dev)
 	return tcpci_set_vconn(tcpc_dev, true);
 }
 
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/01/10, sjc Delete for WD */
 /*
  * [BLOCK] TYPEC Connection State Definition
  */
@@ -223,6 +225,7 @@ enum TYPEC_CONNECTION_STATE {
 
 	typec_unattachwait_pe,	/* Wait Policy Engine go to Idle */
 };
+#endif /* VENDOR_EDIT */
 
 static const char *const typec_state_name[] = {
 	"Disabled",
@@ -367,12 +370,23 @@ static int typec_check_water_status(struct tcpc_device *tcpc_dev)
 
 static bool typec_try_enter_norp_src(struct tcpc_device *tcpc_dev)
 {
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/02/14, Modify Add for WD */
 	if (tcpci_check_vbus_valid(tcpc_dev) &&
 	    (tcpc_dev->typec_state == typec_unattached_snk)) {
 		TYPEC_DBG("norp_src=1\r\n");
 		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_NORP_SRC);
 		return true;
 	}
+#else
+	if (tcpci_check_vbus_valid(tcpc_dev)) {
+		if (tcpc_dev->typec_state == typec_unattached_snk) {
+			TYPEC_DBG("norp_src=1\r\n");
+			tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_NORP_SRC);
+		}
+		return true;
+	}
+#endif /* VENDOR_EDIT */
 
 	return false;
 }
@@ -1625,6 +1639,10 @@ static inline void typec_detach_wait_entry(struct tcpc_device *tcpc_dev)
 	typec_legacy_handle_detach(tcpc_dev);
 #endif	/* CONFIG_TYPEC_CHECK_LEGACY_CABLE */
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/01, sjc Add for charging debug */
+	TYPEC_INFO("typec_detach_wait_entry typec_state[%d]\n", tcpc_dev->typec_state);
+#endif
 	switch (tcpc_dev->typec_state) {
 #ifdef TYPEC_EXIT_ATTACHED_SNK_VIA_VBUS
 	case typec_attached_snk:
@@ -1761,6 +1779,10 @@ static inline bool typec_is_cc_attach(struct tcpc_device *tcpc_dev)
 		break;
 	}
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/01, sjc Add for charging debug */
+	TYPEC_INFO("%s: cc_attach[%d]\n", __func__, cc_attach);
+#endif
 	return cc_attach;
 }
 
@@ -2006,12 +2028,26 @@ int tcpc_typec_handle_cc_change(struct tcpc_device *tcpc_dev)
 	typec_try_exit_norp_src(tcpc_dev);
 #endif	/* CONFIG_TYPEC_CAP_NORP_SRC */
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/01, sjc Modify for charging debug */
+	TYPEC_INFO("[CC_Alert] cc1/cc2[%d/%d], typec_state[%d]\r\n", typec_get_cc1(),
+			typec_get_cc2(), tcpc_dev->typec_state);
+#else
 	TYPEC_INFO("[CC_Alert] %d/%d\r\n", typec_get_cc1(), typec_get_cc2());
+#endif
 
 	typec_disable_low_power_mode(tcpc_dev);
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/01, sjc Modify for charging debug */
+	if (typec_is_ignore_cc_change(tcpc_dev, rp_present)) {
+		TYPEC_INFO("tcpc_typec_handle_cc_change ignore cc_change\n");
+		return 0;
+	}
+#else
 	if (typec_is_ignore_cc_change(tcpc_dev, rp_present))
 		return 0;
+#endif
 
 	if (tcpc_dev->typec_state == typec_attachwait_snk
 		|| tcpc_dev->typec_state == typec_attachwait_src)
@@ -2091,8 +2127,17 @@ static inline int typec_handle_debounce_timeout(struct tcpc_device *tcpc_dev)
 {
 #ifdef CONFIG_TYPEC_CAP_NORP_SRC
 	if (typec_is_cc_no_res() && tcpci_check_vbus_valid(tcpc_dev)
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/28, sjc Modify for charging */
 		&& (tcpc_dev->typec_state == typec_unattached_snk))
 		typec_norp_src_attached_entry(tcpc_dev);
+#else
+		&& (tcpc_dev->typec_state == typec_unattached_snk)) {
+		typec_norp_src_attached_entry(tcpc_dev);
+		TYPEC_DBG("attached norp.src\r\n");
+		return 0;
+	}
+#endif /*VENDOR_EDIT*/
 #endif
 
 	if (typec_is_drp_toggling()) {
@@ -2623,6 +2668,10 @@ int tcpc_typec_change_role(
 		return -EINVAL;
 	}
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/04/08, sjc Add for WD (C to DP/HDMI) */
+	mutex_lock(&tcpc_dev->typec_lock);
+#endif
 	mutex_lock(&tcpc_dev->access_lock);
 
 	tcpc_dev->typec_role = typec_role;
@@ -2643,12 +2692,20 @@ int tcpc_typec_change_role(
 		TYPEC_DBG("force_unattach\r\n");
 		tcpci_set_cc(tcpc_dev, TYPEC_CC_OPEN);
 		mutex_unlock(&tcpc_dev->access_lock);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/04/08, sjc Add for WD (C to DP/HDMI) */
+		mutex_unlock(&tcpc_dev->typec_lock);
+#endif
 		typec_disable_low_power_mode(tcpc_dev);
 		tcpc_enable_timer(tcpc_dev, TYPEC_TIMER_PDDEBOUNCE);
 		return 0;
 	}
 
 	mutex_unlock(&tcpc_dev->access_lock);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/04/08, sjc Add for WD (C to DP/HDMI) */
+	mutex_unlock(&tcpc_dev->typec_lock);
+#endif
 	return 0;
 }
 
@@ -2755,6 +2812,22 @@ int tcpc_typec_handle_wd(struct tcpc_device *tcpc_dev, bool wd)
 		return 0;
 
 	TYPEC_INFO("%s %d\r\n", __func__, wd);
+
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/04/15, sjc Add for do not enable polling when in WD */
+	tcpc_dev->wd_already = wd;
+#endif
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/02/14, sjc Add for WD */
+	tcpci_set_water_protection(tcpc_dev, wd);
+	if (wd)
+		ret = tcpci_set_cc(tcpc_dev, TYPEC_CC_OPEN);
+	else
+		tcpc_typec_error_recovery(tcpc_dev);
+	tcpci_notify_wd_status(tcpc_dev, wd);
+	return ret;
+#endif
+
 	if (!wd) {
 		tcpci_set_water_protection(tcpc_dev, false);
 		tcpc_typec_error_recovery(tcpc_dev);

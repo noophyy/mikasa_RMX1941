@@ -25,6 +25,11 @@
 #include "reg_accdet.h"
 #include <mach/upmu_hw.h>
 
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+#include <linux/switch.h>
+#endif /* ODM_HQ_EDIT */
+
 #define REGISTER_VAL(x)	(x - 1)
 
 /* for accdet_read_audio_res, less than 5k ohm, return -1 , otherwise ret 0 */
@@ -163,6 +168,12 @@ static int moisture_int_r = 47000;
 static int moisture_ext_r = 470000;
 #endif
 #endif
+
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+static struct switch_dev accdet_data;
+extern u32 g_oppo_headset_state_flag;
+#endif  /* ODM_HQ_EDIT */
 
 static bool debug_thread_en;
 static bool dump_reg;
@@ -731,6 +742,11 @@ static void send_accdet_status_event(u32 cable_type, u32 status)
 		input_sync(accdet_input_dev);
 		pr_info("%s HEADPHONE(3-pole) %s\n", __func__,
 			status ? "PlugIn" : "PlugOut");
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+		switch_set_state(&accdet_data, status==0 ? NO_DEVICE_STATE : HEADSET_NO_MIC_STATE);
+		g_oppo_headset_state_flag = status;
+#endif  /* ODM_HQ_EDIT */
 		break;
 	case HEADSET_MIC:
 		/* when plug 4-pole out, 3-pole plug out should also be
@@ -744,6 +760,11 @@ static void send_accdet_status_event(u32 cable_type, u32 status)
 		input_sync(accdet_input_dev);
 		pr_info("%s MICROPHONE(4-pole) %s\n", __func__,
 			status ? "PlugIn" : "PlugOut");
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+		switch_set_state(&accdet_data, status==0 ? NO_DEVICE_STATE : HEADSET_MIC_STATE);
+		g_oppo_headset_state_flag = status;
+#endif  /* ODM_HQ_EDIT */
 		break;
 	case LINE_OUT_DEVICE:
 		input_report_switch(accdet_input_dev, SW_LINEOUT_INSERT,
@@ -751,6 +772,11 @@ static void send_accdet_status_event(u32 cable_type, u32 status)
 		input_sync(accdet_input_dev);
 		pr_info("%s LineOut %s\n", __func__,
 			status ? "PlugIn" : "PlugOut");
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+		switch_set_state(&accdet_data, status==0 ? NO_DEVICE_STATE : LINE_OUT_DEVICE_STATE);
+		g_oppo_headset_state_flag = status;
+#endif  /* ODM_HQ_EDIT */
 		break;
 	default:
 		pr_info("%s Invalid cableType\n", __func__);
@@ -1717,7 +1743,11 @@ static void accdet_init_once(void)
 	/* config micbias voltage */
 	reg = pmic_read(AUDENC_ANA_CON9);
 	pmic_write(AUDENC_ANA_CON9, reg|(accdet_dts.mic_vol<<4));
-
+#ifdef VENDOR_EDIT
+	/* Yongpei.Zhang@PSW.MM.AudioDriver.HeadsetDet, 2018/09/18,*/
+	/* select VTH for 2v, set 239E bit[10] = 1 */
+	pmic_write(AUDENC_ANA_CON10, pmic_read(AUDENC_ANA_CON10) | 0x0400);
+#endif /* VENDOR_EDIT */
 	/* mic mode setting */
 	reg = pmic_read(AUDENC_ANA_CON10);
 	/* ACC mode*/
@@ -1906,6 +1936,18 @@ int mt_accdet_probe(struct platform_device *dev)
 
 	pr_info("%s() begin!\n", __func__);
 
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+	accdet_data.name = "h2w";
+	accdet_data.index = 0;
+	accdet_data.state = 0;
+	ret = switch_dev_register(&accdet_data);
+	if (ret) {
+		pr_notice("%s switch_dev_register fail:%d!\n", __func__,ret);
+		return -1;
+	}
+#endif  /* ODM_HQ_EDIT */
+
 	/* register char device number, Create normal device for auido use */
 	ret = alloc_chrdev_region(&accdet_devno, 0, 1, ACCDET_DEVNAME);
 	if (ret) {
@@ -2079,6 +2121,10 @@ err_class_create:
 err_cdev_add:
 	unregister_chrdev_region(accdet_devno, 1);
 err_chrdevregion:
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+	switch_dev_unregister(&accdet_data);
+#endif  /* ODM_HQ_EDIT */
 	pr_notice("%s error. now exit.!\n", __func__);
 	return ret;
 }
@@ -2097,6 +2143,10 @@ void mt_accdet_remove(void)
 	class_destroy(accdet_class);
 	cdev_del(accdet_cdev);
 	unregister_chrdev_region(accdet_devno, 1);
+#ifdef ODM_HQ_EDIT
+//chenxinjiang@ODM_HQ.Multimedia.audio, 2018/11/28, add for switch node for headset status in mmi test
+	switch_dev_unregister(&accdet_data);
+#endif  /* ODM_HQ_EDIT */
 	pr_debug("%s done!\n", __func__);
 }
 

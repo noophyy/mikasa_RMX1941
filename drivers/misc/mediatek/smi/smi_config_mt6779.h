@@ -297,25 +297,30 @@ struct mtk_smi_pair smi_larb5_config_pair[SMI_LARB5_CONFIG_NUM] = {
 	{SMI_LARB_WRR_PORT(4), 0xb}, {SMI_LARB_WRR_PORT(5), 0xb},
 };
 
-/* LARB6, LARB11 */
 #define SMI_LARB6_CONFIG_NUM	2
 struct mtk_smi_pair smi_larb6_config_pair[SMI_LARB6_CONFIG_NUM] = {
 	{SMI_LARB_CMD_THRT_CON, 0x300256}, {SMI_LARB_SW_FLAG, 0x1},
 };
 
+#define SMI_LARB9_CONFIG_NUM	3
+struct mtk_smi_pair smi_larb9_config_pair[SMI_LARB9_CONFIG_NUM] = {
+	{SMI_LARB_CMD_THRT_CON, 0x300256}, {SMI_LARB_DBG_CON, 0x1},
+	{SMI_LARB_SW_FLAG, 0x1},
+};
+
 unsigned int smi_config_pair_num[SMI_LARB_NUM + 1] = {
 	SMI_LARB0_CONFIG_NUM, SMI_LARB1_CONFIG_NUM, SMI_LARB2_CONFIG_NUM,
 	SMI_LARB0_CONFIG_NUM, SMI_LARB0_CONFIG_NUM, SMI_LARB5_CONFIG_NUM,
-	SMI_LARB6_CONFIG_NUM, SMI_LARB0_CONFIG_NUM, SMI_LARB0_CONFIG_NUM,
-	SMI_LARB0_CONFIG_NUM, SMI_LARB0_CONFIG_NUM, SMI_LARB6_CONFIG_NUM,
+	SMI_LARB6_CONFIG_NUM, SMI_LARB6_CONFIG_NUM, SMI_LARB6_CONFIG_NUM,
+	SMI_LARB9_CONFIG_NUM, SMI_LARB9_CONFIG_NUM, SMI_LARB9_CONFIG_NUM,
 	SMI_COMM_CONFIG_NUM
 };
 
 struct mtk_smi_pair *smi_config_pair[SMI_LARB_NUM + 1] = {
 	smi_larb0_config_pair, smi_larb1_config_pair, smi_larb2_config_pair,
 	smi_larb0_config_pair, smi_larb0_config_pair, smi_larb5_config_pair,
-	smi_larb6_config_pair, smi_larb0_config_pair, smi_larb0_config_pair,
-	smi_larb0_config_pair, smi_larb0_config_pair, smi_larb6_config_pair,
+	smi_larb6_config_pair, smi_larb6_config_pair, smi_larb6_config_pair,
+	smi_larb9_config_pair, smi_larb9_config_pair, smi_larb9_config_pair,
 	smi_comm_config_pair
 };
 

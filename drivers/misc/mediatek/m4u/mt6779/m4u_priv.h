@@ -32,7 +32,11 @@
 #if (defined(CONFIG_TRUSTONIC_TEE_SUPPORT) || \
 	defined(CONFIG_MICROTRUST_TEE_SUPPORT)) && \
 	defined(CONFIG_MTK_TEE_GP_SUPPORT)
+#if defined(CONFIG_MTK_SEC_VIDEO_PATH_SUPPORT)
 #define M4U_TEE_SERVICE_ENABLE
+#elif defined(CONFIG_MTK_CAM_SECURITY_SUPPORT)
+#define M4U_TEE_SERVICE_ENABLE
+#endif
 #endif
 
 #include "m4u_hw.h"

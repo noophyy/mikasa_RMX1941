@@ -28,7 +28,14 @@
 #ifdef CONFIG_COMPAT
 #include <linux/compat.h>
 #endif
-
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Drv add for main2AF 20190927*/
+#include<soc/oppo/oppo_project.h>
+#include <linux/regulator/consumer.h>
+#endif
 /* OIS/EIS Timer & Workqueue */
 #include <linux/hrtimer.h>
 #include <linux/init.h>
@@ -52,8 +59,13 @@
 #endif
 
 #if I2C_CONFIG_SETTING == 1
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Drv add for main2AF 20190927*/
+#define LENS_I2C_BUSNUM 4
+#else
 #define LENS_I2C_BUSNUM 0
-#define I2C_REGISTER_ID 0x28
+#endif
+#define I2C_REGISTER_ID            0x28
 #endif
 
 #define PLATFORM_DRIVER_NAME "lens_actuator_main2_af"
@@ -85,6 +97,10 @@ static struct stAF_OisPosInfo OisPosInfo;
 /* ------------------------- */
 
 static struct stAF_DrvList g_stAF_DrvList[MAX_NUM_OF_LENS] = {
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Camera.Drv add for main2AF 20190927*/
+	{1, AFDRV_DW9718TAF, DW9718TAF_SetI2Cclient, DW9718TAF_Ioctl, DW9718TAF_Release, NULL},
+	#endif
 	{1, AFDRV_LC898212XDAF_F, LC898212XDAF_F_SetI2Cclient,
 	 LC898212XDAF_F_Ioctl, LC898212XDAF_F_Release,
 	 LC898212XDAF_F_GetFileName, NULL},
@@ -120,10 +136,15 @@ static struct device *lens_device;
 static int DrvPwrDn1 = 1;
 #endif
 
-
 void MAIN2AF_PowerDown(void)
 {
 	if (g_pstAF_I2Cclient != NULL) {
+		#ifdef VENDOR_EDIT
+		/*Henry.Chang@Camera.Drv add for main2AF 20190927*/
+		#ifdef CONFIG_MTK_LENS_DW9718TAF_SUPPORT
+		DW9718TAF_SetI2Cclient(g_pstAF_I2Cclient, &g_AF_SpinLock, &g_s4AF_Opened);
+		#endif
+		#endif
 #if defined(CONFIG_MACH_MT6771) || defined(CONFIG_MACH_MT6775)
 		LC898217AF_PowerDown(g_pstAF_I2Cclient,
 					&g_s4AF_Opened);
@@ -166,7 +187,7 @@ static long AF_SetMotorName(__user struct stAF_MotorName *pstMotorName)
 		if (g_stAF_DrvList[i].uEnable != 1)
 			break;
 
-		LOG_INF("Search Motor Name : %s\n", g_stAF_DrvList[i].uDrvName);
+		LOG_INF("MAIN2AF Search Motor Name : %s\n", g_stAF_DrvList[i].uDrvName);
 		if (strcmp(stMotorName.uMotorName,
 			   g_stAF_DrvList[i].uDrvName) == 0) {
 			LOG_INF("Motor Name : %s\n", stMotorName.uMotorName);
@@ -344,7 +365,7 @@ static long AF_Ioctl(struct file *a_pstFile, unsigned int a_u4Command,
 		g_s4AF_Opened = 1;
 		spin_unlock(&g_AF_SpinLock);
 		break;
-
+#ifndef VENDOR_EDIT
 #if !defined(CONFIG_MTK_LEGACY)
 	case AFIOC_S_SETPOWERCTRL:
 		AFRegulatorCtrl(0);
@@ -352,6 +373,7 @@ static long AF_Ioctl(struct file *a_pstFile, unsigned int a_u4Command,
 		if (a_u4Param > 0)
 			AFRegulatorCtrl(1);
 		break;
+#endif
 #endif
 
 	case AFIOC_G_OISPOSINFO:
@@ -423,7 +445,7 @@ static long AF_Ioctl_Compat(struct file *a_pstFile, unsigned int a_u4Command,
 /* CAM_RESET */
 static int AF_Open(struct inode *a_pstInode, struct file *a_pstFile)
 {
-	LOG_INF("Start\n");
+	LOG_INF("MAIN2AF Start\n");
 
 	spin_lock(&g_AF_SpinLock);
 	if (g_s4AF_Opened) {
@@ -433,19 +455,18 @@ static int AF_Open(struct inode *a_pstInode, struct file *a_pstFile)
 	}
 	g_s4AF_Opened = 1;
 	spin_unlock(&g_AF_SpinLock);
-
+#ifndef VENDOR_EDIT
 #if !defined(CONFIG_MTK_LEGACY)
 	AFRegulatorCtrl(1);
+#endif
 #endif
 
 	/* OIS/EIS Timer & Workqueue */
 	/* init work queue */
 	INIT_WORK(&ois_work, ois_pos_polling);
 
-#if 0
 	if (ois_workqueue == NULL)
 		ois_workqueue = create_singlethread_workqueue("ois_polling");
-#endif
 
 	/* init timer */
 	hrtimer_init(&ois_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
@@ -454,7 +475,7 @@ static int AF_Open(struct inode *a_pstInode, struct file *a_pstFile)
 	g_EnableTimer = 0;
 	/* ------------------------- */
 
-	LOG_INF("End\n");
+	LOG_INF("MAIN2AF End\n");
 
 	return 0;
 }
@@ -476,9 +497,10 @@ static int AF_Release(struct inode *a_pstInode, struct file *a_pstFile)
 		g_s4AF_Opened = 0;
 		spin_unlock(&g_AF_SpinLock);
 	}
-
+#ifndef VENDOR_EDIT
 #if !defined(CONFIG_MTK_LEGACY)
 	AFRegulatorCtrl(2);
+#endif
 #endif
 
 	/* OIS/EIS Timer & Workqueue */
@@ -630,9 +652,10 @@ static int AF_i2c_probe(struct i2c_client *client,
 	}
 
 	spin_lock_init(&g_AF_SpinLock);
-
+#ifndef VENDOR_EDIT
 #if !defined(CONFIG_MTK_LEGACY)
 	AFRegulatorCtrl(0);
+#endif
 #endif
 
 	LOG_INF("Attached!!\n");

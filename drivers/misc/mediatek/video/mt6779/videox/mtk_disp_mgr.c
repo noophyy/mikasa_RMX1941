@@ -44,9 +44,7 @@
 #include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/compat.h>
-
 #include "m4u.h"
-
 #include "mtk_sync.h"
 #include "debug.h"
 #include "disp_drv_log.h"
@@ -85,6 +83,25 @@
 #include "disp_lowpower.h"
 #include "ddp_rsz.h"
 
+#ifdef VENDOR_EDIT
+/*
+ * Yongpeng.Yi@PSW.MultiMedia.Display.LCD.Feature, 2018/09/10,
+ * Add for sau and silence close backlight
+ */
+#include <mt-plat/mtk_boot_common.h>
+/*
+ * Hao.lin@PSW.MM.Display.LCD.Stability, 2019/11/07,
+ * modify for fingerprint notify frigger
+ */
+#include <linux/fb.h>
+extern bool oppo_fp_notify_down_delay;
+extern bool oppo_fp_notify_up_delay;
+extern void fingerprint_send_notify(struct fb_info *fbi, uint8_t fingerprint_op_mode);
+extern bool ds_rec_fpd;
+extern bool doze_rec_fpd;
+extern unsigned long silence_mode;
+extern unsigned int fp_silence_mode;
+#endif /*VENDOR_EDIT*/
 
 #define DDP_OUTPUT_LAYID 4
 
@@ -100,7 +117,6 @@ static int has_memory_session;
 /* @g_session: SESSION_TYPE | DEVICE_ID */
 static unsigned int g_session[MAX_SESSION_COUNT];
 static DEFINE_MUTEX(disp_session_lock);
-static DEFINE_MUTEX(disp_layer_lock);
 
 static dev_t mtk_disp_mgr_devno;
 static struct cdev *mtk_disp_mgr_cdev;
@@ -439,7 +455,7 @@ int _ioctl_prepare_buffer(unsigned long arg, enum PREPARE_FENCE_TYPE type)
 	int ret = 0;
 	void __user *argp = (void __user *)arg;
 	struct disp_buffer_info disp_buf;
-	struct mtkfb_fence_buf_info *fence_buf, *fence_buf2 = NULL;
+	struct mtkfb_fence_buf_info *fence_buf, *fence_buf2;
 
 	if (copy_from_user(&disp_buf, (void __user *)arg, sizeof(disp_buf))) {
 		pr_err("[FB Driver] copy_from_user failed! line:%d\n",
@@ -1026,16 +1042,16 @@ long __frame_config(unsigned long arg)
 		goto error1;
 	}
 
-	if (disp_validate_ioctl_params(cfg)) {
-		ret = -EINVAL;
-		goto error1;
-	}
-
 	cfg->setter = SESSION_USER_HWC;
 
 	input_config_preprocess(cfg);
 	if (cfg->output_en)
 		output_config_preprocess(cfg);
+
+	if (disp_validate_ioctl_params(cfg)) {
+		ret = -EINVAL;
+		goto error2;
+	}
 
 	switch (DISP_SESSION_TYPE(cfg->session_id)) {
 	case DISP_SESSION_PRIMARY:
@@ -1053,6 +1069,18 @@ long __frame_config(unsigned long arg)
 		break;
 	}
 
+	#ifdef VENDOR_EDIT
+	/*
+	* Ling.Guo@PSW.MM.Display.LCD.Stability, 2019/01/21,
+	* add for fingerprint notify frigger
+	*/
+	if (oppo_fp_notify_up_delay && ((cfg->hbm_en & 0x2) == 0)) {
+		oppo_fp_notify_up_delay = false;
+		fingerprint_send_notify(NULL, 0);
+	}
+	#endif
+
+error2:
 	disp_input_free_dirty_roi(cfg);
 error1:
 	kfree(cfg);
@@ -1322,9 +1350,7 @@ static long _ioctl_query_valid_layer(unsigned long arg)
 		return -EINVAL;
 	}
 
-	mutex_lock(&disp_layer_lock);
 	layering_rule_start(&disp_info_user, 0);
-	mutex_unlock(&disp_layer_lock);
 
 	if (copy_to_user(argp, &disp_info_user, sizeof(disp_info_user))) {
 		DISP_PR_ERR("[FB] copy_to_user failed! line:%d\n", __LINE__);
@@ -1584,6 +1610,13 @@ long mtk_disp_mgr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return _ioctl_get_info(arg);
 	case DISP_IOCTL_GET_DISPLAY_CAPS:
 		return _ioctl_get_display_caps(arg);
+#ifdef VENDOR_EDIT
+/* Xinqin.Yang@Cam.Tuning.Display, 2018/11/17, add for multi-lcms */
+	case DISP_IOCTL_GET_LCM_MODULE_INFO:
+		{
+			return _ioctl_get_lcm_module_info(arg);
+		}
+#endif /* VENDOR_EDIT */
 	case DISP_IOCTL_GET_VSYNC_FPS:
 		return _ioctl_get_vsync(arg);
 	case DISP_IOCTL_SET_VSYNC_FPS:
@@ -1822,6 +1855,18 @@ static int mtk_disp_mgr_probe(struct platform_device *pdev)
 	class_dev = (struct class_device *)device_create(mtk_disp_mgr_class,
 						NULL, mtk_disp_mgr_devno,
 						NULL, DISP_SESSION_DEVICE);
+
+#ifdef VENDOR_EDIT
+	/* Yongpeng.Yi@PSW.MultiMedia.Display.LCD.Feature, 2018/09/10, Add for sau and silence close backlight */
+	if ((oppo_boot_mode == OPPO_SILENCE_BOOT)
+			||(get_boot_mode() == OPPO_SAU_BOOT))
+	{
+		printk("%s OPPO_SILENCE_BOOT set silence_mode to 1\n", __func__);
+		silence_mode = 1;
+		fp_silence_mode = 1;
+	}
+#endif /*VENDOR_EDIT*/
+
 	disp_sync_init();
 
 	external_display_control_init();

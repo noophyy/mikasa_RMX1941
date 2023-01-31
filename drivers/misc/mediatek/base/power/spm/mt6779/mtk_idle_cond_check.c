@@ -150,7 +150,13 @@ static unsigned int idle_cond_mask_scenario
 		0xBE7000B8,	/* MTCMOS2 */
 		0x08040802,	/* INFRA0  */
 		0x03AFB900,	/* INFRA1  */
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform.1910014, 2019/04/01,
+		 * modify to cancel low power mode for P90 SPI5 transfer-timeout issue */
 		0x040000C5,	/* INFRA2  */
+#else /* VENDOR_EDIT */
+		0x000000C5,	/* INFRA2  */
+#endif /* VENDOR_EDIT */
 		0x00000000,	/* INFRA3  */
 		0xFFFFFFFF,	/* MMSYS0  */
 		0x0001FFFF,	/* MMSYS1  */
@@ -160,7 +166,13 @@ static unsigned int idle_cond_mask_scenario
 		0xBE7000B0,	/* MTCMOS2 */
 		0x0A040802,	/* INFRA0  */
 		0x03AFB900,	/* INFRA1  */
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform.1910014, 2019/04/01,
+		 * modify to cancel low power mode for P90 SPI5 transfer-timeout issue */
 		0x040000D1,	/* INFRA2  */
+#else /* VENDOR_EDIT */
+		0x000000D1,	/* INFRA2  */
+#endif /* VENDOR_EDIT */
 		0x08000000,	/* INFRA3  */
 		0xFFFFFFFF,	/* MMSYS0  */
 		0x0001FFFF,	/* MMSYS1  */
@@ -170,7 +182,13 @@ static unsigned int idle_cond_mask_scenario
 		0xBE7000B0,	/* MTCMOS2 */
 		0x08040802,	/* INFRA0  */
 		0x03AFB900,	/* INFRA1  */
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform.1910014, 2019/04/01,
+		 * modify to cancel low power mode for P90 SPI5 transfer-timeout issue */
 		0x040000C1,	/* INFRA2  */
+#else /* VENDOR_EDIT */
+		0x000000C1,	/* INFRA2  */
+#endif /* VENDOR_EDIT */
 		0x00000000,	/* INFRA3  */
 		0x000DFC00,	/* MMSYS0  */
 		0x00003F7C,	/* MMSYS1  */
@@ -187,7 +205,13 @@ static unsigned int idle_cond_mask_resource
 		0xBE7000B0,	/* MTCMOS2 */
 		0x08040802,	/* INFRA0  */
 		0x03AFB900,	/* INFRA1  */
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform.1910014, 2019/04/01,
+		 * modify to cancel low power mode for P90 SPI5 transfer-timeout issue */
 		0x040000C1,	/* INFRA2  */
+#else /* VENDOR_EDIT */
+		0x000000C1,	/* INFRA2  */
+#endif /* VENDOR_EDIT */
 		0x00000000,	/* INFRA3  */
 		0x01023000,	/* MMSYS0  */
 		0x00000000,	/* MMSYS1  */
@@ -197,7 +221,13 @@ static unsigned int idle_cond_mask_resource
 		0xBE7000B0,	/* MTCMOS1 */
 		0x08040802,	/* INFRA0  */
 		0x03AFB900,	/* INFRA1  */
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform.1910014, 2019/04/01,
+		 * modify to cancel low power mode for P90 SPI5 transfer-timeout issue */
 		0x040000C1,	/* INFRA2  */
+#else /* VENDOR_EDIT */
+		0x000000C1,	/* INFRA2  */
+#endif /* VENDOR_EDIT */
 		0x00000000,	/* INFRA3  */
 		0x03F63000,	/* MMSYS0  */
 		0x00000000,	/* MMSYS1  */
@@ -207,7 +237,13 @@ static unsigned int idle_cond_mask_resource
 		0xBE7000B0,	/* MTCMOS1 */
 		0x08040802,	/* INFRA0  */
 		0x03AFB900,	/* INFRA1  */
+#ifdef VENDOR_EDIT
+		/* Yongzhi.Zhang@PSW.MM.AudioDriver.Platform.1910014, 2019/04/01,
+		 * modify to cancel low power mode for P90 SPI5 transfer-timeout issue */
 		0x040000D1,	/* INFRA2  */
+#else /* VENDOR_EDIT */
+		0x000000D1,	/* INFRA2  */
+#endif /* VENDOR_EDIT */
 		0x08000000,	/* INFRA3  */
 		0x00000000,	/* MMSYS0  */
 		0x00000000,	/* MMSYS1  */

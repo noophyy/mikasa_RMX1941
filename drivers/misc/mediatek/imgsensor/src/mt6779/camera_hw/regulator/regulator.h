@@ -21,6 +21,14 @@
 
 #include "imgsensor_hw.h"
 #include "imgsensor_common.h"
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
+#ifdef VENDOR_EDIT
+/* Henry.Chang@Camera.Driver add for vcamaf 20191016 */
+#include "imgsensor.h"
+#endif
 
 enum REGULATOR_VOLTAGE {
 	REGULATOR_VOLTAGE_0    = 0,
@@ -40,6 +48,11 @@ enum REGULATOR_TYPE {
 	REGULATOR_TYPE_VCAMA,
 	REGULATOR_TYPE_VCAMD,
 	REGULATOR_TYPE_VCAMIO,
+	#ifdef VENDOR_EDIT
+	/* Henry.Chang@Camera.Driver add for vcamaf 20191016 */
+	REGULATOR_TYPE_VCAMD_1,
+	REGULATOR_TYPE_VCAMAF,
+	#endif
 	REGULATOR_TYPE_MAX_NUM
 };
 
@@ -53,7 +66,10 @@ struct REGULATOR {
 	atomic_t          enable_cnt[
 		IMGSENSOR_SENSOR_IDX_MAX_NUM][REGULATOR_TYPE_MAX_NUM];
 };
-
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+extern struct IMGSENSOR gimgsensor;
+#endif
 enum IMGSENSOR_RETURN imgsensor_hw_regulator_open(
 	struct IMGSENSOR_HW_DEVICE **pdevice);
 

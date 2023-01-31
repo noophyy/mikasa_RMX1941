@@ -24,6 +24,11 @@
 
 #define IMGSENSOR_FEATURE_PARA_LEN_MAX 128000
 
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
+
 struct IMGSENSOR_STATUS {
 	u32 reserved:31;
 	u32 oc:1;
@@ -77,6 +82,11 @@ imgsensor_sensor_control(
 		enum MSDK_SCENARIO_ID_ENUM ScenarioId);
 
 extern struct IMGSENSOR_HW_CFG imgsensor_custom_config[];
-
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+extern struct IMGSENSOR_HW_CFG imgsensor_custom_config_P90Q[];
+/* Tan.Bowen@Camera.Driver 20191016 add for project 19357*/
+extern struct IMGSENSOR_HW_CFG imgsensor_custom_config_19357[];
+#endif
 #endif
 

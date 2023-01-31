@@ -97,6 +97,10 @@ struct mt6360_pmu_chg_info {
 	struct workqueue_struct *pe_wq;
 	struct work_struct pe_work;
 	u8 ctd_dischg_status;
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+	atomic_t suspended;
+#endif
 };
 
 enum mt6360_iinlmtsel {
@@ -153,6 +157,15 @@ static const struct mt6360_chg_platform_data def_platform_data = {
 	.post_aicc = true,
 	.chg_name = "primary_chg",
 };
+
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+static struct mt6360_pmu_chg_info *oppompci = NULL;
+#endif
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/12/13, sjc Add for OTG */
+extern void oppo_chg_set_otg_online(bool online);
+#endif
 
 /* ================== */
 /* Internal Functions */
@@ -438,8 +451,15 @@ static int __maybe_unused mt6360_is_dcd_tout_enable(
 
 static int __mt6360_enable_usbchgen(struct mt6360_pmu_chg_info *mpci, bool en)
 {
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/26, sjc Modify for charging */
 	int i, ret = 0;
 	const int max_wait_cnt = 200;
+#else
+	int ret = 0;
+	int max_wait_cnt = 400;
+	bool pwr_rdy = false;
+#endif
 #ifndef CONFIG_TCPC_CLASS
 	bool pwr_rdy = false;
 #endif /* !CONFIG_TCPC_CLASS */
@@ -450,6 +470,8 @@ static int __mt6360_enable_usbchgen(struct mt6360_pmu_chg_info *mpci, bool en)
 #endif /* CONFIG_MT6360_DCDTOUT_SUPPORT */
 
 	dev_info(mpci->dev, "%s: en = %d\n", __func__, en);
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/26, sjc Modify for charging */
 	if (en) {
 #ifndef CONFIG_MT6360_DCDTOUT_SUPPORT
 		ret = mt6360_is_dcd_tout_enable(mpci, &dcd_en);
@@ -489,6 +511,44 @@ static int __mt6360_enable_usbchgen(struct mt6360_pmu_chg_info *mpci, bool en)
 		else
 			dev_info(mpci->dev, "%s: CDP free\n", __func__);
 	}
+#else /*VENDOR_EDIT*/
+	if (en) {
+		/* Workaround for CDP port */
+		if (is_usb_rdy() == false) {
+			dev_info(mpci->dev, "%s: CDP block\n", __func__);
+			while (is_usb_rdy() == false && max_wait_cnt > 0) {
+				/* Check vbus */
+				ret = mt6360_get_chrdet_ext_stat(mpci, &pwr_rdy);
+				if (ret < 0) {
+					dev_err(mpci->dev, "%s: fail, ret = %d\n", __func__, ret);
+					return ret;
+				}
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/05/10, sjc Modify for charging */
+				if (!pwr_rdy) {
+					dev_info(mpci->dev, "%s: plug out\n", __func__);
+					return ret;
+				}
+#else /*VENDOR_EDIT*/
+#ifndef CONFIG_TCPC_CLASS
+				if (!pwr_rdy) {
+					dev_info(mpci->dev, "%s: plug out\n", __func__);
+					return ret;
+				}
+#endif /* CONFIG_TCPC_CLASS */
+#endif /*VENDOR_EDIT*/
+				msleep(100);
+				max_wait_cnt--;
+			}
+			if (max_wait_cnt == 0)
+				dev_err(mpci->dev, "%s: CDP timeout\n", __func__);
+			else
+				dev_info(mpci->dev, "%s: CDP free, timeout:%d\n", __func__, max_wait_cnt);
+		} else {
+			dev_info(mpci->dev, "%s: CDP free\n", __func__);
+		}
+	}
+#endif /*VENDOR_EDIT*/
 	mt6360_set_usbsw_state(mpci, usbsw);
 	ret = mt6360_pmu_reg_update_bits(mpci->mpi, MT6360_PMU_DEVICE_TYPE,
 					 MT6360_MASK_USBCHGEN, en ? 0xff : 0);
@@ -530,6 +590,20 @@ static int mt6360_chgdet_pre_process(struct mt6360_pmu_chg_info *mpci,
 				   "%s: set psy online fail\n", __func__);
 		return mt6360_psy_chg_type_changed(mpci);
 	}
+
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/04/10, sjc Add for pr swap */
+	if (ignore_usb) {
+		dev_notice(mpci->dev, "%s: force NONSTANDARD_CHARGER in pr_swap\n", __func__);
+		mpci->pwr_rdy = true;
+		mpci->chg_type = NONSTANDARD_CHARGER;
+		ret = mt6360_psy_online_changed(mpci);
+		if (ret < 0)
+			dev_notice(mpci->dev, "%s: set psy online fail\n", __func__);
+		return mt6360_psy_chg_type_changed(mpci);
+	}
+#endif /*VENDOR_EDIT*/
+
 	return __mt6360_enable_usbchgen(mpci, attach);
 }
 
@@ -573,6 +647,8 @@ static int mt6360_chgdet_post_process(struct mt6360_pmu_chg_info *mpci)
 		break;
 	}
 out:
+#ifndef VENDOR_EDIT
+/*lizhijie@BSP.CHG.Basic, lzj add for huawei and qc adapter charger*/
 	if (!attach) {
 		ret = __mt6360_enable_usbchgen(mpci, false);
 		if (ret < 0)
@@ -580,6 +656,12 @@ out:
 				   __func__);
 	} else if (mpci->chg_type != STANDARD_CHARGER)
 		mt6360_set_usbsw_state(mpci, MT6360_USBSW_USB);
+#else
+	ret = __mt6360_enable_usbchgen(mpci, false);
+	if (ret < 0)
+			dev_notice(mpci->dev, "%s: disable chgdet fail\n",
+				__func__);
+#endif /*VENDOR_EDIT*/
 
 	ret = mt6360_psy_online_changed(mpci);
 	if (ret < 0)
@@ -1369,6 +1451,14 @@ static int mt6360_enable_otg(struct charger_device *chg_dev, bool en)
 {
 	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
 	int ret = 0;
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/12/13, sjc Add for OTG */
+	static struct power_supply *battery_psy = NULL;
+	if (!battery_psy) {
+		battery_psy = power_supply_get_by_name("battery");
+		//dev_err(mpci->dev, "%s: battery_psy null\n", __func__);
+	}
+#endif /*VENDOR_EDIT*/
 
 	dev_dbg(mpci->dev, "%s: en = %d\n", __func__, en);
 	ret = mt6360_enable_wdt(mpci, en ? true : false);
@@ -1376,6 +1466,12 @@ static int mt6360_enable_otg(struct charger_device *chg_dev, bool en)
 		dev_err(mpci->dev, "%s: set wdt fail, en = %d\n", __func__, en);
 		return ret;
 	}
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/12/13, sjc Add for OTG */
+	oppo_chg_set_otg_online(en ? true : false);
+	if (battery_psy)
+		power_supply_changed(battery_psy);
+#endif
 	return mt6360_pmu_reg_update_bits(mpci->mpi, MT6360_PMU_CHG_CTRL1,
 					  MT6360_MASK_OPA_MODE, en ? 0xff : 0);
 }
@@ -1496,6 +1592,13 @@ static int mt6360_get_vbus(struct charger_device *chg_dev, u32 *vbus)
 {
 	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+	if (oppompci) {
+		if (atomic_read(&oppompci->suspended) == 1)
+			return -1;
+	}
+#endif
 	mt_dbg(mpci->dev, "%s\n", __func__);
 	return mt6360_get_adc(chg_dev, ADC_CHANNEL_VBUS, vbus, vbus);
 }
@@ -1548,6 +1651,13 @@ static int mt6360_kick_wdt(struct charger_device *chg_dev)
 {
 	struct mt6360_pmu_chg_info *mpci = charger_get_data(chg_dev);
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+	if (oppompci) {
+		if (atomic_read(&oppompci->suspended) == 1)
+			return -1;
+	}
+#endif
 	dev_dbg(mpci->dev, "%s\n", __func__);
 	return mt6360_pmu_reg_read(mpci->mpi, MT6360_PMU_CHG_CTRL1);
 }
@@ -2132,11 +2242,31 @@ static irqreturn_t mt6360_pmu_bst_vbusovi_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Add for OTG */
+static struct delayed_work mt6360_bst_olpi_work;
+extern int tcpc_otg_disable(void);
+extern void tcpc_power_work_call(bool enable);
+
+static void mt6360_otg_ocp_work(struct work_struct *data)
+{
+	/*set usb to device mode*/
+	tcpc_otg_disable();
+	/*disable vbus*/
+	tcpc_power_work_call(false);
+}
+#endif /*VENDOR_EDIT*/
+
 static irqreturn_t mt6360_pmu_bst_olpi_handler(int irq, void *data)
 {
 	struct mt6360_pmu_chg_info *mpci = data;
 
 	dev_warn(mpci->dev, "%s\n", __func__);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/03/26, sjc Add for OTG */
+	cancel_delayed_work_sync(&mt6360_bst_olpi_work);
+	schedule_delayed_work(&mt6360_bst_olpi_work, 0);
+#endif
 	return IRQ_HANDLED;
 }
 
@@ -2533,6 +2663,18 @@ static int mt6360_chg_init_setting(struct mt6360_pmu_chg_info *mpci)
 		dev_err(mpci->dev, "%s: disable wdt fail\n", __func__);
 		return ret;
 	}
+
+#ifdef VENDOR_EDIT
+/*xing.xiong@BSP.Kernel.Driver, 2018/12/04, Add for disable long press*/
+	/* disable charger long press reboot */
+	dev_err(mpci->dev, "%s: disable long press system reset \n", __func__);
+	ret = mt6360_pmu_reg_set_bits(mpci->mpi, MT6360_PMU_CHG_PUMP, 0X80);
+	if (ret < 0) {
+		dev_err(mpci->dev, "%s: disable long press system reset failed\n", __func__);
+		return ret;
+	}
+#endif
+
 	/* Disable USB charger type detect, no matter use it or not */
 	ret = mt6360_enable_usbchgen(mpci, false);
 	if (ret < 0) {
@@ -2595,6 +2737,17 @@ static int mt6360_chg_init_setting(struct mt6360_pmu_chg_info *mpci)
 	ret = mt6360_pmu_reg_update_bits(mpci->mpi, MT6360_PMU_USBID_CTRL2,
 					 MT6360_MASK_IDTD |
 					 MT6360_MASK_USBID_FLOAT, 0x62);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2019/01/30, sjc Add for charging */
+	if (ret < 0) {
+		dev_err(mpci->dev, "%s: set USBID_TD fail\n", __func__);
+		return ret;
+	}
+
+	/* DCD Timeout: 300ms */
+	ret = mt6360_pmu_reg_update_bits(mpci->mpi, MT6360_PMU_DEVICE_TYPE,
+			MT6360_MASK_DCD_TIMEOUT, 0x00);
+#endif /*VENDOR_EDIT*/
 	return ret;
 }
 
@@ -2642,6 +2795,174 @@ static ssize_t shipping_mode_store(struct device *dev,
 	return count;
 }
 static const DEVICE_ATTR_WO(shipping_mode);
+
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+bool mt6360_get_vbus_status(void)
+{
+	bool vbus_rising = false;
+
+	if (oppompci) {
+		if (atomic_read(&oppompci->suspended) == 0)
+			mt6360_get_chrdet_ext_stat(oppompci, &vbus_rising);
+	} else {
+		printk(KERN_ERR "%s NULL\n", __func__);
+	}
+	return vbus_rising;
+}
+EXPORT_SYMBOL(mt6360_get_vbus_status);
+
+int mt6360_get_vbus_rising(void)
+{
+	bool vbus_rising = false;
+	int ret = 0;
+
+	if (oppompci) {
+		if (atomic_read(&oppompci->suspended) == 0)
+			ret = mt6360_get_chrdet_ext_stat(oppompci, &vbus_rising);
+		else
+			ret = -1;
+	} else {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return 0;
+	}
+	return (ret < 0) ? ret : (vbus_rising ? 1 : 0);
+}
+EXPORT_SYMBOL(mt6360_get_vbus_rising);
+
+int mt6360_chg_enable(bool en)
+{
+	int rc = 0;
+
+	if (oppompci) {
+		if (atomic_read(&oppompci->suspended) == 0)
+			rc = mt6360_pmu_reg_update_bits(oppompci->mpi, MT6360_PMU_CHG_CTRL2,
+					MT6360_MASK_CHG_EN, en ? 0xff : 0);
+		else
+			printk(KERN_ERR "%s in suspended\n", __func__);
+	} else {
+		printk(KERN_ERR "%s NULL\n", __func__);
+	}
+	return rc;
+}
+EXPORT_SYMBOL(mt6360_chg_enable);
+
+int mt6360_check_charging_enable(void)
+{
+	bool chg_enable = false;
+
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return 0;
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return 0;
+	mt6360_is_charger_enabled(oppompci, &chg_enable);
+	return chg_enable ? 1 : 0;
+}
+EXPORT_SYMBOL(mt6360_check_charging_enable);
+
+int mt6360_suspend_charger(bool suspend)
+{
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return -1;
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return -1;
+	return mt6360_pmu_reg_update_bits(oppompci->mpi, MT6360_PMU_CHG_CTRL1,
+			MT6360_MASK_FORCE_SLEEP, suspend ? 0xff : 0);
+}
+EXPORT_SYMBOL(mt6360_suspend_charger);
+
+int mt6360_set_rechg_voltage(int rechg_mv)
+{
+	unsigned char reg = 0;
+
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return -1;
+	}
+	if (rechg_mv < 150) {
+		reg = 0x0;//100mV
+	} else if (rechg_mv < 200) {
+		reg = 0x1;//150mV
+	} else if (rechg_mv < 250) {
+		reg = 0x2;//200mV
+	} else {
+		reg = 0x3;//250mV
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return -1;
+	return mt6360_pmu_reg_update_bits(oppompci->mpi,
+			MT6360_PMU_CHG_CTRL11, 0x03, reg);
+}
+EXPORT_SYMBOL(mt6360_set_rechg_voltage);
+
+int mt6360_reset_charger(void)
+{
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return -1;
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return -1;
+	return mt6360_pmu_reg_update_bits(oppompci->mpi,
+			MT6360_PMU_RST1, 0x40, 0x40);
+}
+EXPORT_SYMBOL(mt6360_reset_charger);
+
+int mt6360_set_chging_term_disable(bool disable)
+{
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return -1;
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return -1;
+	return mt6360_pmu_reg_update_bits(oppompci->mpi,
+			MT6360_PMU_CHG_CTRL9, 0x08, disable ? 0x0 : 0x08);
+}
+EXPORT_SYMBOL(mt6360_set_chging_term_disable);
+
+int mt6360_aicl_enable(bool enable)
+{
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return -1;
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return -1;
+	return mt6360_pmu_reg_update_bits(oppompci->mpi,
+			MT6360_PMU_CHG_CTRL6, 0x1, enable ? 1 : 0);
+}
+EXPORT_SYMBOL(mt6360_aicl_enable);
+
+int mt6360_chg_enable_wdt(bool enable)
+{
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return -1;
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return -1;
+	printk("aft_%s\n", __func__);
+	return mt6360_enable_wdt(oppompci, enable);
+}
+EXPORT_SYMBOL(mt6360_chg_enable_wdt);
+
+int mt6360_set_register(unsigned char addr, unsigned char mask, unsigned char data)
+{
+	if (!oppompci) {
+		printk(KERN_ERR "%s NULL\n", __func__);
+		return -1;
+	}
+	if (atomic_read(&oppompci->suspended) == 1)
+		return -1;
+	return mt6360_pmu_reg_update_bits(oppompci->mpi, addr, mask, data);
+}
+EXPORT_SYMBOL(mt6360_set_register);
+#endif /* VENDOR_EDIT */
 
 static int mt6360_pmu_chg_probe(struct platform_device *pdev)
 {
@@ -2759,6 +3080,12 @@ static int mt6360_pmu_chg_probe(struct platform_device *pdev)
 	schedule_work(&mpci->chgdet_work);
 #endif /* CONFIG_MT6360_PMU_CHARGER_TYPE_DETECT && !CONFIG_TCPC_CLASS */
 	dev_info(&pdev->dev, "%s: successfully probed\n", __func__);
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+	oppompci = mpci;
+	atomic_set(&oppompci->suspended, 0);
+	INIT_DELAYED_WORK(&mt6360_bst_olpi_work, mt6360_otg_ocp_work);
+#endif
 	return 0;
 err_shipping_mode_attr:
 	device_remove_file(mpci->dev, &dev_attr_shipping_mode);
@@ -2797,11 +3124,21 @@ static int mt6360_pmu_chg_remove(struct platform_device *pdev)
 
 static int __maybe_unused mt6360_pmu_chg_suspend(struct device *dev)
 {
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+	if (oppompci)
+		atomic_set(&oppompci->suspended, 1);
+#endif
 	return 0;
 }
 
 static int __maybe_unused mt6360_pmu_chg_resume(struct device *dev)
 {
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2018/11/09, sjc Add for charging */
+	if (oppompci)
+		atomic_set(&oppompci->suspended, 0);
+#endif
 	return 0;
 }
 

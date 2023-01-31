@@ -107,6 +107,9 @@ struct cmdqWriteAddressStruct {
 /*  */
 #define CMDQ_IOCTL_NOTIFY_ENGINE _IOW(CMDQ_IOCTL_MAGIC_NUMBER, 12, uint64_t)
 
+
+int m4u_sec_init(void);
+
 s32 cmdq_driver_ioctl_query_usage(struct file *pf, unsigned long param);
 s32 cmdq_driver_ioctl_query_cap_bits(unsigned long param);
 s32 cmdq_driver_ioctl_query_dts(unsigned long param);

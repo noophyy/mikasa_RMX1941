@@ -72,6 +72,7 @@ static BLOCKING_NOTIFIER_HEAD(cmdq_status_dump_notifier);
 static struct cmdq_client *cmdq_clients[CMDQ_MAX_THREAD_COUNT];
 static struct cmdq_base *cmdq_client_base;
 static atomic_t cmdq_thread_usage;
+struct wakeup_source cmdq_wake_lock;
 
 static wait_queue_head_t *cmdq_wait_queue; /* task done notify */
 static struct ContextStruct cmdq_ctx; /* cmdq driver context */
@@ -100,102 +101,45 @@ static atomic_t cmdq_alloc_cnt[CMDQ_CLT_MAX + 1];
 
 /* CMDQ core feature functions */
 
-/* #define CMDQ_DEBUG_ADDR */
-
-enum xpr_rt_state {
-	XPR_UNLOCK,
-	XPR_UNKNOWN,
-	XPR_REG,
-	XPR_DMA
-};
-
-struct cmdq_check {
-	union {
-		struct {
-			u16 ci:16;
-			u16 bi:16;
-		};
-		u32 val;
-	};
-	u16 ai:16;
-	u8 sop:5;
-	u8 opt:3;
-	u8 op:8;
-};
-
-enum xpr_id {
-	xpr_r0 = CMDQ_DATA_REG_JPEG,
-	xpr_p1 = CMDQ_DATA_REG_JPEG_DST,
-	xpr_r5 = CMDQ_DATA_REG_2D_SHARPNESS_0,
-	xpr_p4 = CMDQ_DATA_REG_2D_SHARPNESS_0_DST,
-	xpr_r10 = CMDQ_DATA_REG_2D_SHARPNESS_1,
-	xpr_p6 = CMDQ_DATA_REG_2D_SHARPNESS_1_DST,
-	xpr_r4 = CMDQ_DATA_REG_PQ_COLOR,
-	xpr_p3 = CMDQ_DATA_REG_PQ_COLOR,
-	xpr_r11 = CMDQ_DATA_REG_DEBUG,
-	xpr_p7 = CMDQ_DATA_REG_DEBUG_DST,
-	xpr_spr0 = 0,
-	xpr_total = 32,
-};
-
-static u32 mdp_base[1] = {0};
-static u32 mdp_sub_base[1] = {0};
-
-static bool cmdq_mdp_is_reg_valid(const unsigned long pa)
+static bool cmdq_core_check_gpr_valid(const u32 gpr, const bool val)
 {
-	u32 base = (u32)(pa & 0xFFFFF000);
-	u32 i;
-	static u32 last_idx;
-
-	if (base == mdp_base[last_idx])
-		return true;
-
-	for (i = 0; i < ARRAY_SIZE(mdp_base); i++)
-		if (base == mdp_base[i]) {
-			last_idx = i;
+	if (val)
+		switch (gpr) {
+		case CMDQ_DATA_REG_JPEG:
+		case CMDQ_DATA_REG_PQ_COLOR:
+		case CMDQ_DATA_REG_2D_SHARPNESS_0:
+		case CMDQ_DATA_REG_2D_SHARPNESS_1:
+		case CMDQ_DATA_REG_DEBUG:
 			return true;
+		default:
+			return false;
 		}
-
-#ifdef CMDQ_DEBUG_ADDR
-	CMDQ_LOG("[note]blocking pa:%#010lx\n", pa);
-	return true;
-#else
+	else
+		switch (gpr >> 16) {
+		case CMDQ_DATA_REG_JPEG_DST:
+		case CMDQ_DATA_REG_PQ_COLOR_DST:
+		case CMDQ_DATA_REG_2D_SHARPNESS_0:
+		case CMDQ_DATA_REG_2D_SHARPNESS_0_DST:
+		case CMDQ_DATA_REG_2D_SHARPNESS_1_DST:
+		case CMDQ_DATA_REG_DEBUG_DST:
+			return true;
+		default:
+			return false;
+		}
 	return false;
-#endif
 }
 
-static bool cmdq_mdp_is_sub_valid(u8 subsys, u16 offset)
-{
-	u32 base = (offset & 0xF000) | subsys;
-	u32 i;
-	static u32 last_idx;
-
-	if (base == mdp_sub_base[last_idx])
-		return true;
-
-	for (i = 0; i < ARRAY_SIZE(mdp_sub_base); i++)
-		if (base == mdp_sub_base[i]) {
-			last_idx = i;
-			return true;
-		}
-#ifdef CMDQ_DEBUG_ADDR
-	CMDQ_LOG("[note]blocking subsys:%#04x %#06x\n",
-		(u32)subsys, (u32)offset);
-	return true;
-#else
-	return false;
-#endif
-}
-
-static bool cmdq_core_check_dma_valid(const unsigned long pa)
+static bool cmdq_core_check_dma_addr_valid(const unsigned long pa)
 {
 	struct WriteAddrStruct *waddr = NULL;
 	unsigned long flags = 0L;
+	phys_addr_t start = memblock_start_of_DRAM();
 	bool ret = false;
 
 	spin_lock_irqsave(&cmdq_write_addr_lock, flags);
 	list_for_each_entry(waddr, &cmdq_ctx.writeAddrList, list_node)
-		if (pa - (unsigned long)waddr->pa < waddr->count << 2) {
+		if (pa < start || pa - (unsigned long)waddr->pa <
+			waddr->count << 2) {
 			ret = true;
 			break;
 		}
@@ -203,270 +147,80 @@ static bool cmdq_core_check_dma_valid(const unsigned long pa)
 	return ret;
 }
 
-static bool cmdq_core_check_addr_valid(const unsigned long pa, bool *dma)
+static bool cmdq_core_check_instr_valid(const u64 instr)
 {
-	static phys_addr_t start;
-
-	if (!start)
-		start = memblock_start_of_DRAM();
-
-	if (pa < start) {
-		*dma = false;
-		return cmdq_mdp_is_reg_valid((u32)pa);
-	}
-
-	*dma = true;
-	return cmdq_core_check_dma_valid(pa);
-}
-
-static bool cmdq_core_check_move(const struct cmdq_check *check,
-	enum xpr_rt_state *xpr)
-{
-	bool dma;
-
-	if (((u32 *)check)[1] == 0x2000000)
-		return true;
-
-	if (unlikely(check->opt != 0x4))
-		return false;
-
-	if (unlikely(!cmdq_core_check_addr_valid(check->val, &dma)))
-		return false;
-
-	if (unlikely(xpr[check->sop] == XPR_UNLOCK))
-		return false;
-	xpr[check->sop] = dma ? XPR_DMA : XPR_REG;
-	return true;
-}
-
+	u32 op = instr >> 56, option = (instr >> 53) & 0x7;
+	u32 argA = (instr >> 32) & 0x1FFFFF, argB = instr & 0xFFFFFFFF;
 #ifdef CMDQ_MDP_ENABLE_SPR
-static bool cmdq_core_check_logic(const struct cmdq_check *check,
-	enum xpr_rt_state *xpr, u32 *spr)
-{
-	if (unlikely(check->opt != 0x4 || check->ai || check->sop ||
-		check->bi))
-		return false;
-	*spr = check->val;
-	xpr[xpr_spr0] = XPR_UNKNOWN;
-	return true;
-}
-
-static bool cmdq_core_check_write_s(const struct cmdq_check *check,
-	enum xpr_rt_state *xpr, u32 *spr)
-{
-	u8 base_type = check->ai & 0x2;
-	bool dma;
-
-	switch (check->opt) {
-	case 0:
-		break;
-	case 0x2:
-		if (unlikely(!base_type || check->bi != 1))
-			return false;
-		break;
-	default:
-		return false;
-	}
-
-	if (base_type) { /* base + offset case */
-		if (unlikely(check->sop)) /* must spr0 */
-			return false;
-		if (unlikely(xpr[check->sop] != XPR_UNKNOWN))
-			return false;
-		return cmdq_core_check_addr_valid(
-			(*spr << 16) | (check->ai & ~0x3), &dma);
-	}
-	return cmdq_mdp_is_sub_valid(check->sop, check->ai);
-}
-
-static bool cmdq_core_check_read_s(const struct cmdq_check *check,
-	enum xpr_rt_state *xpr, u32 *spr)
-{
-	if (unlikely(check->opt != 0x4 || check->ai != 1))
-		return false;
-
-	if (check->bi & 0x2) {
-		if (unlikely(check->sop)) /* must spr0 */
-			return false;
-		if (unlikely(xpr[check->sop] != XPR_UNKNOWN))
-			return false;
-		return cmdq_mdp_is_reg_valid(
-			(*spr << 16) | (check->bi & ~0x3));
-	}
-
-	return cmdq_mdp_is_sub_valid(check->sop, check->bi);
-}
-
+	u32 sOP = argA >> 16, argA_i = argA & 0xFFFF;
+	u32 argB_i = argB >> 16, argC_i = argB & 0xFFFF;
 #endif
 
-static bool cmdq_core_valid_gpr_token(u16 event, bool lock,
-	enum xpr_rt_state *xpr)
-{
-	static u16 gpr_idx_r[] = {
-		xpr_r0,
-		xpr_r5,
-		xpr_r10,
-		xpr_r4,
-		xpr_r11,
-	};
-
-	static u16 gpr_idx_p[] = {
-		xpr_p1,
-		xpr_p4,
-		xpr_p6,
-		xpr_p3,
-		xpr_p7,
-	};
-
-	u16 idx = event - CMDQ_SYNC_TOKEN_GPR_SET_0;
-
-	if (idx >= ARRAY_SIZE(gpr_idx_r))
-		return true;
-
-	if (lock) {
-		if (unlikely(xpr[gpr_idx_r[idx]] != XPR_UNLOCK ||
-			xpr[gpr_idx_p[idx]] != XPR_UNLOCK))
-			return false;
-		xpr[gpr_idx_r[idx]] = XPR_UNKNOWN;
-		xpr[gpr_idx_p[idx]] = XPR_UNKNOWN;
-	} else {
-		if (unlikely(xpr[gpr_idx_r[idx]] == XPR_UNLOCK ||
-			xpr[gpr_idx_p[idx]] == XPR_UNLOCK))
-			return false;
-		xpr[gpr_idx_r[idx]] = XPR_UNLOCK;
-		xpr[gpr_idx_p[idx]] = XPR_UNLOCK;
-	}
-
-	return true;
-}
-
-static bool cmdq_core_check_event(const struct cmdq_check *check,
-	enum xpr_rt_state *xpr)
-{
-	u64 pattern = *(u64 *)check & 0xfffffc00ffffffff;
-
-	switch (pattern) {
-	case 0x2000000080008001: /* wait and clear event */
-		return cmdq_core_valid_gpr_token(check->ai, true, xpr);
-	case 0x2000000080010000: /* set */
-		return cmdq_core_valid_gpr_token(check->ai, false, xpr);
-	case 0x2000000080018000: /* acquire */
-	case 0x2000000080000000: /* clear event */
-	case 0x2000000000008001: /* wait no clear */
-		if (unlikely(check->ai == CMDQ_SYNC_TOKEN_GPR_SET_0 ||
-			check->ai == CMDQ_SYNC_TOKEN_GPR_SET_1 ||
-			check->ai == CMDQ_SYNC_TOKEN_GPR_SET_2 ||
-			check->ai == CMDQ_SYNC_TOKEN_GPR_SET_3 ||
-			check->ai == CMDQ_SYNC_TOKEN_GPR_SET_4))
-			return false;
+	switch (op) {
+	case CMDQ_CODE_WRITE:
+		if (!option)
+			return true;
+		if (option == 0x2 && cmdq_core_check_gpr_valid(argB, true))
+			return true;
+		if (option == 0x4 && cmdq_core_check_gpr_valid(argA, false))
+			return true;
+		if (option == 0x6 && cmdq_core_check_gpr_valid(argA, false) &&
+			cmdq_core_check_gpr_valid(argB, true))
+			return true;
 		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
-
-static bool cmdq_core_check_write(const struct cmdq_check *check,
-	enum xpr_rt_state *xpr)
-{
-	switch (check->opt) {
-	case 0:
-		return cmdq_mdp_is_sub_valid(check->sop, check->ai);
-	case 0x2:
-		return check->val < xpr_total &&
-			xpr[check->val] != XPR_UNLOCK &&
-			cmdq_mdp_is_sub_valid(check->sop, check->ai);
-	case 0x4:
-		if (unlikely(xpr[check->sop] != XPR_DMA &&
-			xpr[check->sop] != XPR_REG))
-			return false;
+	case CMDQ_CODE_READ:
+		if (option == 0x2 && cmdq_core_check_gpr_valid(argB, true))
+			return true;
+		if (option == 0x6 && cmdq_core_check_gpr_valid(argA, false) &&
+			cmdq_core_check_gpr_valid(argB, true))
+			return true;
 		break;
-	case 0x6:
-		if (unlikely((xpr[check->sop] != XPR_DMA &&
-			xpr[check->sop] != XPR_REG) ||
-			check->val >= xpr_total ||
-			xpr[check->val] != XPR_UNKNOWN)) {
-			return false;
-		}
+	case CMDQ_CODE_MOVE:
+		if (!option && !argA)
+			return true;
+		if (option == 0x4 && cmdq_core_check_gpr_valid(argA, false) &&
+			cmdq_core_check_dma_addr_valid(argB))
+			return true;
 		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
-
-static bool cmdq_core_check_read(const struct cmdq_check *check,
-	enum xpr_rt_state *xpr)
-{
-	switch (check->opt) {
-	case 0x2:
-		if (unlikely(check->val >= xpr_total ||
-			xpr[check->val] == XPR_UNLOCK) ||
-			!cmdq_mdp_is_sub_valid(check->sop, check->ai))
-			return false;
+	case CMDQ_CODE_JUMP:
+		if (!argA && argB == 0x8)
+			return true;
 		break;
-	case 0x6:
-		if (unlikely(check->sop >= xpr_total ||
-			check->val >= xpr_total ||
-			xpr[check->sop] != XPR_REG ||
-			xpr[check->val] == XPR_UNLOCK))
-			return false;
-		break;
-	default:
-		return false;
-	}
-
-	/* state to unknown */
-	xpr[check->val] = XPR_UNKNOWN;
-	return true;
-}
-
-static bool cmdq_core_check_instr_valid(const u64 instr,
-	enum xpr_rt_state *gpr, enum xpr_rt_state *spr, u32 *spr_val)
-{
-	const struct cmdq_check *check = (void *)&instr;
-
-	switch (check->op) {
-	case CMDQ_CODE_WFE:
-		return cmdq_core_check_event(check, gpr);
 #ifdef CMDQ_MDP_ENABLE_SPR
+	case CMDQ_CODE_READ_S:
+		if (option == 0x4 && argA_i == 1 && !argC_i)
+			return true;
+		break;
 	case CMDQ_CODE_WRITE_S:
 	case CMDQ_CODE_WRITE_S_W_MASK:
-		return cmdq_core_check_write_s(check, spr, spr_val);
+		if (!option)
+			return true;
+		if (option == 0x2 && (!argB_i || argB_i == 1) && !argC_i)
+			return true;
+		break;
 	case CMDQ_CODE_LOGIC:
-		return cmdq_core_check_logic(check, spr, spr_val);
-	case CMDQ_CODE_READ_S:
-		return cmdq_core_check_read_s(check, spr, spr_val);
-#endif
-	case CMDQ_CODE_WRITE:
-		return cmdq_core_check_write(check, gpr);
-	case CMDQ_CODE_READ:
-		return cmdq_core_check_read(check, gpr);
-	case CMDQ_CODE_MOVE:
-		return cmdq_core_check_move(check, gpr);
-	case CMDQ_CODE_JUMP:
-#ifdef CMDQ_MDP_ENABLE_SPR
-		return instr == 0x1000000000000001;
+		if (option == 0x4 && !sOP && !argA_i && !argB_i)
+			return true;
+		break;
 #else
-		return instr == 0x1000000000000008;
+	case CMDQ_CODE_READ_S:
+	case CMDQ_CODE_WRITE_S:
+	case CMDQ_CODE_WRITE_S_W_MASK:
+	case CMDQ_CODE_LOGIC:
+		break;
 #endif
-	case CMDQ_CODE_EOC:
-	case CMDQ_CODE_POLL:
-		return true;
-
+	case CMDQ_CODE_JUMP_C_ABSOLUTE:
+	case CMDQ_CODE_JUMP_C_RELATIVE:
+		break;
 	default:
-		return false;
+		return true;
 	}
+	CMDQ_ERR("instr:%#llx\n", instr);
+	return false;
 }
 
-bool cmdq_core_check_user_valid(void *src, u32 size,
-	struct cmdqRecStruct *handle)
+bool cmdq_core_check_user_valid(void *src, u32 size)
 {
-	enum xpr_rt_state gpr[xpr_total] = {0};
-	enum xpr_rt_state spr[xpr_total] = {0};
-	u32 spr0 = 0;
 	void *buffer;
 	u64 *va;
 	bool ret = true;
@@ -499,18 +253,13 @@ bool cmdq_core_check_user_valid(void *src, u32 size,
 
 		for (va = (u64 *)buffer;
 			va < (u64 *)(buffer + copy_size); va++) {
-			ret = cmdq_core_check_instr_valid(*va, gpr, spr,
-				&spr0);
-			if (unlikely(!ret)) {
-				CMDQ_ERR("instr:%#llx\n", *va);
+			ret = cmdq_core_check_instr_valid(*va);
+			if (unlikely(!ret))
 				break;
-			}
 		}
 
 		remain_size -= copy_size;
 		cur_src += copy_size;
-
-		cmdq_pkt_copy_cmd(handle, buffer, copy_size, false);
 	}
 
 	mutex_unlock(&cmdq_inst_check_mutex);
@@ -4255,6 +4004,29 @@ bool cmdq_thread_in_use(void)
 	return (bool)(atomic_read(&cmdq_thread_usage) > 0);
 }
 
+static void cmdq_lock_wake_lock(bool lock)
+{
+	static bool is_locked;
+
+	if (lock) {
+		if (!is_locked) {
+			__pm_stay_awake(&cmdq_wake_lock);
+			is_locked = true;
+		} else  {
+			/* should not reach here */
+			CMDQ_ERR("try lock twice\n");
+		}
+	} else {
+		if (is_locked) {
+			__pm_relax(&cmdq_wake_lock);
+			is_locked = false;
+		} else {
+			/* should not reach here */
+			CMDQ_ERR("try unlock twice\n");
+		}
+	}
+}
+
 static void cmdq_core_clk_enable(struct cmdqRecStruct *handle)
 {
 	s32 clock_count;
@@ -4264,8 +4036,11 @@ static void cmdq_core_clk_enable(struct cmdqRecStruct *handle)
 	CMDQ_MSG("[CLOCK]enable usage:%d scenario:%d\n",
 		clock_count, handle->scenario);
 
-	if (clock_count == 1)
+	if (clock_count == 1) {
+		/* make sure pm not suspend */
+		cmdq_lock_wake_lock(true);
 		cmdq_core_reset_gce();
+	}
 
 	cmdq_core_group_clk_cb(true, handle->engineFlag, handle->engine_clk);
 }
@@ -4285,6 +4060,9 @@ static void cmdq_core_clk_disable(struct cmdqRecStruct *handle)
 		cmdq_get_func()->eventBackup();
 		/* clock-off */
 		cmdq_get_func()->enableGCEClockLocked(false);
+
+		/* now allow pm suspend */
+		cmdq_lock_wake_lock(false);
 	} else if (clock_count < 0) {
 		CMDQ_ERR(
 			"enable clock %s error usage:%d smi use:%d\n",
@@ -4639,7 +4417,6 @@ s32 cmdq_core_suspend(void)
 {
 	s32 ref_count;
 	u32 exec_thread = 0;
-	bool kill_task = false;
 
 	ref_count = atomic_read(&cmdq_thread_usage);
 	if (ref_count)
@@ -4651,79 +4428,15 @@ s32 cmdq_core_suspend(void)
 		CMDQ_ERR(
 			"[SUSPEND] MDP running, kill tasks. threads:0x%08x ref:%d\n",
 			exec_thread, ref_count);
-		kill_task = true;
+		return -EBUSY;
 	} else if ((ref_count > 0) || (0x80000000 & exec_thread)) {
 		CMDQ_ERR(
 			"[SUSPEND] other running, kill tasks. threads:0x%08x ref:%d\n",
 			exec_thread, ref_count);
-		kill_task = true;
+		return -EBUSY;
 	}
 
 	atomic_set(&cmdq_sec_dbg_ctrl, 0);
-
-	/* TODO:
-	 * We need to ensure the system is ready to suspend,
-	 * so kill all running CMDQ tasks
-	 * and release HW engines.
-	 */
-	if (kill_task) {
-#if 0
-		CMDQ_PROF_MUTEX_LOCK(gCmdqTaskMutex, suspend_kill);
-
-		/* print active tasks */
-		CMDQ_ERR("[SUSPEND] active tasks during suspend:\n");
-		list_for_each(p, &cmdq_ctx.taskActiveList) {
-			pTask = list_entry(p, struct TaskStruct, listEntry);
-			if (cmdq_core_is_valid_in_active_list(pTask))
-				cmdq_core_dump_task(pTask);
-		}
-
-		/* remove all active task from thread */
-		CMDQ_ERR("[SUSPEND] remove all active tasks\n");
-		list_for_each(p, &cmdq_ctx.taskActiveList) {
-			pTask = list_entry(p, struct TaskStruct, listEntry);
-
-			if (pTask->thread != CMDQ_INVALID_THREAD) {
-				spin_lock_irqsave(&gCmdqExecLock, flags,
-					suspend_loop);
-
-				CMDQ_ERR("[SUSPEND] release task:0x%p\n",
-					pTask);
-
-				cmdq_core_force_remove_task_from_thread(pTask,
-					pTask->thread);
-				pTask->taskState = TASK_STATE_KILLED;
-
-				spin_unlock_irqrestore(&gCmdqExecLock, flags,
-					suspend_loop);
-
-				/* release all thread and mark active tasks
-				 * as "KILLED" (so that thread won't release
-				 * again)
-				 */
-				CMDQ_ERR(
-					"[SUSPEND] release all threads and HW clocks\n");
-				cmdq_core_release_thread(pTask);
-			}
-		}
-
-		CMDQ_PROF_MUTEX_UNLOCK(gCmdqTaskMutex, suspend_kill);
-
-		/* TODO: skip secure path thread... */
-		/* disable all HW thread */
-		CMDQ_ERR("[SUSPEND] disable all HW threads\n");
-		for (i = 0; i < max_thread_count; i++)
-			cmdq_core_disable_HW_thread(i);
-
-		/* reset all threadStruct */
-		cmdq_core_reset_thread_struct();
-
-		/* reset all engineStruct */
-		memset(&cmdq_ctx.engine[0], 0,
-			sizeof(cmdq_ctx.engine));
-		cmdq_core_reset_engine_struct();
-#endif
-	}
 
 	CMDQ_MSG("CMDQ is suspended\n");
 #ifdef CMDQ_TIMER_ENABLE
@@ -5890,6 +5603,7 @@ void cmdq_core_initialize(void)
 	cmdq_helper_mbox_register(cmdq_dev_get());
 
 	atomic_set(&cmdq_thread_usage, 0);
+	wakeup_source_init(&cmdq_wake_lock, "cmdq_wakelock");
 
 	cmdq_wait_queue = kcalloc(max_thread_count, sizeof(*cmdq_wait_queue),
 		GFP_KERNEL);

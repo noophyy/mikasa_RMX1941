@@ -2303,7 +2303,7 @@ static int ISP_WriteReg(struct ISP_REG_IO_STRUCT *pRegIo)
 	int Ret = 0;
 	struct ISP_REG_STRUCT *pData = NULL;
 
-	if ((pRegIo->Count * sizeof(struct ISP_REG_STRUCT)) > 0xFFFFF000) {
+	if (pRegIo->Count > 0xFFFFFFFF) {
 		LOG_NOTICE("pRegIo->Count error");
 		Ret = -EFAULT;
 		goto EXIT;
@@ -10171,7 +10171,7 @@ irqreturn_t ISP_Irq_CAM(enum ISP_IRQ_TYPE_ENUM irq_module)
 				ISP_RD32(CAM_REG_CQ_THR8_BASEADDR(reg_module)),
 				ISP_RD32(CAM_REG_CQ_THR12_BASEADDR(
 					reg_module)),
-				ISP_RD32(CAM_REG_CTL_SEL(reg_module)),
+				lock_reg.CAM_REG_CTL_SEL[reg_module],
 				ISP_RD32(CAM_REG_CTL_MISC(reg_module)));
 			} else {
 				IRQ_LOG_KEEPER(module, m_CurrentPPB, _LOG_INF,
@@ -10235,7 +10235,8 @@ irqreturn_t ISP_Irq_CAM(enum ISP_IRQ_TYPE_ENUM irq_module)
 
 		}
 #if (Lafi_WAM_CQ_ERR == 1)
-		ISP_RecordCQAddr(reg_module);
+		if (!(ErrStatus & CQ_VS_ERR_ST))
+			ISP_RecordCQAddr(reg_module);
 #endif
 		/* update SOF time stamp for eis user */
 		/* (need match with the time stamp in image header) */

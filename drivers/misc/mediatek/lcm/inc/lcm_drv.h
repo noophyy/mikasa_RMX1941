@@ -24,6 +24,38 @@
 
 /* ------------------------------------------------------------------------- */
 
+#ifdef VENDOR_EDIT
+/* LiPing-m@PSW.MM.Display.LCD.Machine, 2017/11/03, Add for porting 17331 lcd driver */
+#define LM3697_EXPONENTIAL 1
+#define MP3188_EXPONENTIAL 1
+
+#ifdef VENDOR_EDIT
+/*
+ * Guoqiang.jiang@MM.Display.LCD.Machine, 2018/03/13,
+ * add for backlight IC KTD3136
+ */
+#define KTD3136_EXPONENTIAL 1
+#endif /*VENDOR_EDIT*/
+
+extern int is_lm3697;
+extern long lcd_bl_en_setting(unsigned int value);
+extern long lcd_enn_bias_setting(unsigned int value);
+extern long lcd_enp_bias_setting(unsigned int value);
+extern long lcd_rst_setting(unsigned int value);
+extern long lcd_1p8_en_setting(unsigned int value);
+/* ZhongWenjie@PSW.BSP.TP.FUNCTION, 2018/6/7, Add for no-flash TP */
+extern long spi_csn_en_setting(unsigned int value);
+/* LiPing-m@PSW.MM.Display.LCD.Machine, 2017/12/27, Add for 17197 lcd driver */
+extern long lcd_vci_setting(unsigned int value);
+extern long lcd_vpoc_setting(unsigned int value);
+extern long lcd_mipi_err_setting(unsigned int value);
+extern long lcd_ldo_setting(unsigned int value);
+int __attribute__((weak)) register_device_proc(char *name, char *version, char *manufacture) {
+	printk("%s not defined, use weak func\n", __func__);
+
+	return 0;
+}
+#endif /* VENDOR_EDIT */
 /* common enumerations */
 
 enum LCM_TYPE {
@@ -709,6 +741,14 @@ struct LCM_PARAMS {
 	unsigned int average_luminance;
 	unsigned int max_luminance;
 
+#ifdef ODM_HQ_EDIT
+/* wangxianfei@ODM.HQ.Multimedia.LCM 2018/12/21 modified for backlight remapping*/
+	int *blmap;
+	int blmap_size;
+	int brightness_max;
+	int brightness_min;
+#endif
+
 	unsigned int hbm_en_time;
 	unsigned int hbm_dis_time;
 };
@@ -825,7 +865,6 @@ struct dsi_cmd_desc {
 	unsigned int vc;
 	unsigned int dlen;
 	unsigned int link_state;
-	unsigned int cmd;
 	char *payload;
 };
 
@@ -842,9 +881,6 @@ struct LCM_UTIL_FUNCS {
 	void (*send_cmd)(unsigned int cmd);
 	void (*send_data)(unsigned int data);
 	unsigned int (*read_data)(void);
-
-	void (*dsi_set_cmdq_V4)(struct LCM_setting_table_V3 *para_list,
-			unsigned int size,	bool hs);
 
 	void (*dsi_set_cmdq_V3)(struct LCM_setting_table_V3 *para_list,
 			unsigned int size, unsigned char force_update);
@@ -917,6 +953,34 @@ struct LCM_DRIVER {
 	unsigned int (*get_pwm)(unsigned int divider);
 	void (*set_backlight_mode)(unsigned int mode);
 	/* ///////////////////////// */
+#ifdef VENDOR_EDIT
+/* Yongpeng.Yi@PSW.MultiMedia.Display.LCD.Machine, 2018/09/10, Add for Porting cabc interface */
+	void (*set_cabc_mode_cmdq)(void *handle, unsigned int level);
+	/*
+	* liping-m@PSW.MM.Display.LCD.Stability, 2018/07/20,
+	* add power seq api for ulps
+	*/
+	void (*poweron_before_ulps)(void);
+	void (*poweroff_after_ulps)(void);
+	/*
+	* Yongpeng.Yi@PSW.MM.Display.LCD.Stability, 2018/01/16,
+	* add for samsung lcd hbm node
+	*/
+	void (*set_hbm_mode_cmdq)(void *handle, unsigned int level);
+	/*
+	* Yongpeng.Yi@PSW.MM.Display.LCD.Feature, 2018/09/26,
+	* add for Aod feature
+	*/
+	void (*aod_doze_resume)(void);
+	/*
+	* Ling.Guo@PSW.MM.Display.LCD.Stability, 2019/02/14,
+	* modify for support aod state.
+	*/
+	void (*disp_lcm_aod_from_display_on)(void);
+	void (*set_aod_brightness)(void *handle, unsigned int mode);
+	void (*set_safe_mode)(void *handle, unsigned int mode);
+	bool (*set_hbm_wait_ramless)(bool wait, void *qhandle);
+#endif /* VENDOR_EDIT */
 
 	int (*adjust_fps)(void *cmdq, int fps, struct LCM_PARAMS *params);
 	void (*validate_roi)(int *x, int *y, int *width, int *height);
@@ -945,8 +1009,6 @@ struct LCM_DRIVER {
 	void (*set_pwm_for_mix)(int enable);
 
 	void (*aod)(int enter);
-	void (*set_aod_area_cmdq)(void *handle, unsigned char *area);
-	int (*get_doze_delay)(void);
 };
 
 /* LCM Driver Functions */

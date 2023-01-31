@@ -27,6 +27,12 @@
 #include "ccci_swtp.h"
 #include "ccci_fsm.h"
 
+//#ifdef VENDOR_EDIT
+//Anhui.Sun@PSW.NW.RF, 2018/12/19, Add for SWTP - RF cable detection, reference from ODM_WT
+#include <linux/proc_fs.h>
+static unsigned int swtp_status_value = SWTP_EINT_PIN_PLUG_OUT;
+//#endif  /*VENDOR_EDIT*/
+
 const struct of_device_id swtp_of_match[] = {
 	{ .compatible = SWTP_COMPATIBLE_DEVICE_ID, },
 	{ .compatible = SWTP1_COMPATIBLE_DEVICE_ID,},
@@ -94,6 +100,11 @@ static int swtp_switch_mode(int irq, struct swtp_t *swtp)
 	CCCI_LEGACY_ALWAYS_LOG(swtp->md_id, SYS, "%s mode %d\n",
 		__func__, swtp->final_mode);
 	spin_unlock_irqrestore(&swtp->spinlock, flags);
+
+	//#ifdef VENDOR_EDIT
+	//Anhui.Sun@PSW.NW.RF, 2018/12/19, Add for SWTP - RF cable detection, reference from ODM_WT
+	swtp_status_value = swtp->final_mode;
+	//#endif  /*VENDOR_EDIT*/
 
 	return swtp->final_mode;
 }
@@ -192,6 +203,32 @@ int swtp_md_tx_power_req_hdlr(int md_id, int data)
 	return 0;
 }
 
+//#ifdef VENDOR_EDIT
+//Anhui.Sun@PSW.NW.RF, 2018/12/19, Add for SWTP - RF cable detection, reference from ODM_WT
+static int swtp_gpio_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%d\n", swtp_status_value);
+	return 0;
+}
+
+static int swtp_gpio_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, swtp_gpio_show, NULL);
+}
+
+static const struct file_operations swtp_gpio_fops = {
+	.open	= swtp_gpio_proc_open,
+	.read	= seq_read,
+	.llseek	= seq_lseek,
+	.release = single_release,
+};
+
+static void swtp_gpio_create_proc(void)
+{
+	proc_create("swtp_status_value", 0444, NULL, &swtp_gpio_fops);
+}
+//#endif  /*VENDOR_EDIT*/
+
 int swtp_init(int md_id)
 {
 	int i, ret = 0;
@@ -229,6 +266,17 @@ int swtp_init(int md_id)
 				of_get_named_gpio(node, "deb-gpios", 0);
 			swtp_data[md_id].eint_type[i] = ints1[1];
 #endif
+
+            //#ifdef VENDOR_EDIT
+            //Anhui.Sun@PSW.NW.RF, 2018/12/19, Add for SWTP - RF cable detection, reference from ODM_WT
+            CCCI_LEGACY_ERR_LOG(md_id, SYS,
+                    "swtp-eint original gpio=%d, of gpio=%d, setdebounce=%d, eint_type=%d\n",
+                    ints1[0],
+                    swtp_data[md_id].gpiopin[i],
+                    swtp_data[md_id].setdebounce[i],
+                    swtp_data[md_id].eint_type[i]);
+            //#endif  /*VENDOR_EDIT*/
+
 			gpio_set_debounce(swtp_data[md_id].gpiopin[i],
 			swtp_data[md_id].setdebounce[i]);
 			swtp_data[md_id].irq[i] = irq_of_parse_and_map(node, 0);
@@ -254,6 +302,12 @@ int swtp_init(int md_id)
 	}
 	register_ccci_sys_call_back(md_id, MD_SW_MD1_TX_POWER_REQ,
 		swtp_md_tx_power_req_hdlr);
+
+	//#ifdef VENDOR_EDIT
+	//Anhui.Sun@PSW.NW.RF, 2018/12/19, Add for SWTP - RF cable detection, reference from ODM_WT
+	swtp_gpio_create_proc();
+	//#endif  /*VENDOR_EDIT*/
+
 	return ret;
 }
 

@@ -31,7 +31,10 @@
 
 #include "flashlight-core.h"
 #include "flashlight-dt.h"
-
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Driver add for 19551/19597 torch duty 20190803*/
+#include<soc/oppo/oppo_project.h>
+#endif
 /* device tree should be defined in flashlight-dt.h */
 #ifndef MT6360_DTNAME
 #define MT6360_DTNAME "mediatek,flashlights_mt6360"
@@ -50,9 +53,15 @@
 #define MT6360_ENABLE 1
 #define MT6360_ENABLE_TORCH 1
 #define MT6360_ENABLE_FLASH 2
-
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Driver add for 19551/19597 torch duty 20190803*/
+#define MT6360_LEVEL_NUM      (12)
+#define MT6360_LEVEL_TORCH    (6)
+#define SINGLE_FLASH_DUAL_LED (0)
+#else
 #define MT6360_LEVEL_NUM 32
 #define MT6360_LEVEL_TORCH 16
+#endif
 #define MT6360_LEVEL_FLASH MT6360_LEVEL_NUM
 #define MT6360_WDT_TIMEOUT 1248 /* ms */
 #define MT6360_HW_TIMEOUT 400 /* ms */
@@ -92,6 +101,40 @@ struct mt6360_platform_data {
 /******************************************************************************
  * mt6360 operations
  *****************************************************************************/
+#ifdef VENDOR_EDIT
+/*Add by Henry.Chang@Camera.Driver for P90 flashlight 20190221*/
+/* single-colortemperature dual-leds mt6360_current: single-led current * 2 */
+static const int mt6360_current[MT6360_LEVEL_NUM] = {
+	150, 200, 300, 400, 500, 600, 750, 900, 1050, 1200, 1350, 1500
+};
+
+static const int mt6360_current_19357[MT6360_LEVEL_NUM] = {
+	75, 125, 175, 225, 300, 350, 400, 550, 700, 850, 1000, 1100
+};
+
+/* 25+12.5*n*/
+static const unsigned char mt6360_torch_level[MT6360_LEVEL_TORCH] = {
+	0x03, 0x04, 0x06, 0x0A, 0xE, 0x12
+};
+
+/* 25+12.5*n*/
+static const unsigned char mt6360_torch_level_19551[MT6360_LEVEL_TORCH] = {
+	0x02, 0x03, 0x04, 0x06, 0x0A, 0x0E
+};
+
+static const unsigned char mt6360_torch_level_19357[MT6360_LEVEL_TORCH] = {
+	0x07, 0x07, 0x07, 0x07, 0x07, 0x07
+};
+
+/* 0x00~0x74 6.25mA/step 0x75~0xB1 12.5mA/step */
+static const unsigned char mt6360_strobe_level[MT6360_LEVEL_FLASH] = {
+	0x08, 0x0C, 0x14, 0x1C, 0x24, 0x2C, 0x38, 0x44, 0x50, 0x5C, 0x68, 0x74
+};
+
+static const unsigned char mt6360_strobe_level_19357[MT6360_LEVEL_FLASH] = {
+	0x08, 0x10, 0x18, 0x20, 0x28, 0x30, 0x3C, 0x54, 0x6C, 0x7C, 0x88, 0x90
+};
+#else
 static const int mt6360_current[MT6360_LEVEL_NUM] = {
 	  25,   50,  75, 100, 125, 150, 175,  200,  225,  250,
 	 275,  300, 325, 350, 375, 400, 450,  500,  550,  600,
@@ -111,7 +154,7 @@ static const unsigned char mt6360_strobe_level[MT6360_LEVEL_FLASH] = {
 	0x64, 0x6C, 0x74, 0x78, 0x7C, 0x80, 0x84, 0x88, 0x8C, 0x90,
 	0x94, 0x98
 };
-
+#endif
 static int mt6360_decouple_mode;
 static int mt6360_en_ch1;
 static int mt6360_en_ch2;
@@ -176,7 +219,33 @@ static int mt6360_enable(void)
 
 	pr_debug("enable(%d,%d), mode:%d.\n",
 		mt6360_en_ch1, mt6360_en_ch2, mode);
-
+	#ifdef VENDOR_EDIT
+	/* Henry.Chang@Camera.Driver add for P90 Project dualled pulse error 20190327 */
+	if (mt6360_decouple_mode == FLASHLIGHT_SCENARIO_COUPLE &&
+			mt6360_en_ch1 != MT6360_DISABLE &&
+			mt6360_en_ch2 != MT6360_DISABLE) {
+		pr_info("dual flash mode\n");
+		if (mode == FLASHLIGHT_MODE_TORCH)
+			ret |= flashlight_set_mode(
+				flashlight_dev_ch1, FLASHLIGHT_MODE_DUAL_TORCH);
+		else
+			ret |= flashlight_set_mode(
+				flashlight_dev_ch1, FLASHLIGHT_MODE_DUAL_FLASH);
+	} else {
+		if (mt6360_en_ch1)
+			ret |= flashlight_set_mode(
+				flashlight_dev_ch1, mode);
+		else if (mt6360_decouple_mode == FLASHLIGHT_SCENARIO_COUPLE)
+			ret |= flashlight_set_mode(
+				flashlight_dev_ch1, FLASHLIGHT_MODE_OFF);
+		if (mt6360_en_ch2)
+			ret |= flashlight_set_mode(
+				flashlight_dev_ch2, mode);
+		else if (mt6360_decouple_mode == FLASHLIGHT_SCENARIO_COUPLE)
+			ret |= flashlight_set_mode(
+				flashlight_dev_ch2, FLASHLIGHT_MODE_OFF);
+	}
+	#else
 	/* enable channel 1 and channel 2 */
 	if (mt6360_decouple_mode == FLASHLIGHT_SCENARIO_COUPLE &&
 			mt6360_en_ch1 != MT6360_DISABLE &&
@@ -202,6 +271,7 @@ static int mt6360_enable(void)
 			ret |= flashlight_set_mode(
 				flashlight_dev_ch2, FLASHLIGHT_MODE_OFF);
 	}
+	#endif
 	if (ret < 0)
 		pr_info("Failed to enable.\n");
 
@@ -297,11 +367,38 @@ static int mt6360_set_level_ch1(int level)
 	}
 
 	/* set brightness level */
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Camera.Driver add for 19551/19597 torch duty 20190803*/
+	if (!mt6360_is_torch(level)) {
+		if (is_project(OPPO_19551) || is_project(OPPO_19597)) {
+			flashlight_set_torch_brightness(
+				flashlight_dev_ch1, mt6360_torch_level_19551[level]);
+		} else if (is_project(OPPO_19354) || is_project(OPPO_19357) || is_project(OPPO_19358) || is_project(OPPO_19359)) {
+			flashlight_set_torch_brightness(
+				flashlight_dev_ch1, mt6360_torch_level_19357[level]);
+		} else {
+			flashlight_set_torch_brightness(
+				flashlight_dev_ch1, mt6360_torch_level[level]);
+		}
+	}
+	#else
 	if (!mt6360_is_torch(level))
 		flashlight_set_torch_brightness(
-				flashlight_dev_ch1, mt6360_torch_level[level]);
-	flashlight_set_strobe_brightness(
+			flashlight_dev_ch1, mt6360_torch_level[level]);
+	#endif
+
+	#ifdef VENDOR_EDIT
+	/*Tan.Bowen@Camera.Driver 20191112 add for project 19357*/
+	if (is_project(OPPO_19354) || is_project(OPPO_19357) || is_project(OPPO_19358) || is_project(OPPO_19359))
+	{
+		flashlight_set_strobe_brightness(
+			flashlight_dev_ch1, mt6360_strobe_level_19357[level]);
+	} else
+	#endif
+	{
+		flashlight_set_strobe_brightness(
 			flashlight_dev_ch1, mt6360_strobe_level[level]);
+	}
 
 	return 0;
 }
@@ -317,11 +414,39 @@ static int mt6360_set_level_ch2(int level)
 	}
 
 	/* set brightness level */
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Camera.Driver add for 19551/19597 torch duty 20190803*/
+	if (!mt6360_is_torch(level)) {
+		if (is_project(OPPO_19551) || is_project(OPPO_19597)) {
+			flashlight_set_torch_brightness(
+				flashlight_dev_ch2, mt6360_torch_level_19551[level]);
+		} else if (is_project(OPPO_19354) || is_project(OPPO_19357) || is_project(OPPO_19358) || is_project(OPPO_19359)) {
+			flashlight_set_torch_brightness(
+				flashlight_dev_ch2, mt6360_torch_level_19357[level]);
+		} else {
+			flashlight_set_torch_brightness(
+				flashlight_dev_ch2, mt6360_torch_level[level]);
+		}
+	}
+	#else
 	if (!mt6360_is_torch(level))
 		flashlight_set_torch_brightness(
-				flashlight_dev_ch2, mt6360_torch_level[level]);
-	flashlight_set_strobe_brightness(
+			flashlight_dev_ch2, mt6360_torch_level[level]);
+	#endif
+
+	#ifdef VENDOR_EDIT
+	/*Tan.Bowen@Camera.Driver 20191112 add for project 19357*/
+	if (is_project(OPPO_19354) || is_project(OPPO_19357) || is_project(OPPO_19358) || is_project(OPPO_19359))
+	{
+		flashlight_set_strobe_brightness(
+			flashlight_dev_ch2, mt6360_strobe_level_19357[level]);
+	} else
+	#endif
+	{
+		flashlight_set_strobe_brightness(
 			flashlight_dev_ch2, mt6360_strobe_level[level]);
+	}
+
 
 	return 0;
 }
@@ -406,8 +531,13 @@ static int mt6360_uninit(void)
 
 	/* clear charger status */
 	is_decrease_voltage = 0;
-
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Camera.Driver add for 19551 torch duty 20190803*/
 	ret = mt6360_disable(MT6360_CHANNEL_ALL);
+	#else
+	ret = mt6360_disable(MT6360_CHANNEL_CH1);
+	ret |= mt6360_disable(MT6360_CHANNEL_CH2);
+	#endif
 
 	return ret;
 }
@@ -575,13 +705,25 @@ static int mt6360_ioctl(unsigned int cmd, unsigned long arg)
 	case FLASH_IOC_SET_TIME_OUT_TIME_MS:
 		pr_debug("FLASH_IOC_SET_TIME_OUT_TIME_MS(%d): %d\n",
 				channel, (int)fl_arg->arg);
+		#ifdef VENDOR_EDIT
+		/* Henry.Chang@Camera.Driver add for Dual channel flashlight 20190223 */
+		mt6360_timeout_ms[MT6360_CHANNEL_CH1] = fl_arg->arg;
+		mt6360_timeout_ms[MT6360_CHANNEL_CH2] = fl_arg->arg;
+		#else
 		mt6360_timeout_ms[channel] = fl_arg->arg;
+		#endif
 		break;
 
 	case FLASH_IOC_SET_DUTY:
 		pr_debug("FLASH_IOC_SET_DUTY(%d): %d\n",
 				channel, (int)fl_arg->arg);
+		#ifdef VENDOR_EDIT
+		/* Henry.Chang@Camera.Driver add for Dual channel flashlight 20190223 */
+		mt6360_set_level(MT6360_CHANNEL_CH1, fl_arg->arg);
+		mt6360_set_level(MT6360_CHANNEL_CH2, fl_arg->arg);
+		#else
 		mt6360_set_level(channel, fl_arg->arg);
+		#endif
 		break;
 
 	case FLASH_IOC_SET_SCENARIO:
@@ -593,7 +735,22 @@ static int mt6360_ioctl(unsigned int cmd, unsigned long arg)
 	case FLASH_IOC_SET_ONOFF:
 		pr_debug("FLASH_IOC_SET_ONOFF(%d): %d\n",
 				channel, (int)fl_arg->arg);
+		#ifdef VENDOR_EDIT
+		/*Henry.Chang@Camera.Driver add for dualflash eng test 20190402*/
+		if (fl_arg->arg == 2) {
+			mt6360_operate(MT6360_CHANNEL_CH1, MT6360_ENABLE);
+			mt6360_operate(MT6360_CHANNEL_CH2, MT6360_DISABLE);
+		} else if (fl_arg->arg == 3) {
+			mt6360_operate(MT6360_CHANNEL_CH1, MT6360_DISABLE);
+			mt6360_operate(MT6360_CHANNEL_CH2, MT6360_ENABLE);
+		} else {
+			/* Henry.Chang@Camera.Driver add for Dual channel flashlight 20190223 */
+			mt6360_operate(MT6360_CHANNEL_CH1, fl_arg->arg);
+			mt6360_operate(MT6360_CHANNEL_CH2, fl_arg->arg);
+		}
+		#else
 		mt6360_operate(channel, fl_arg->arg);
+		#endif
 		break;
 
 	case FLASH_IOC_IS_CHARGER_READY:
@@ -616,7 +773,17 @@ static int mt6360_ioctl(unsigned int cmd, unsigned long arg)
 		fl_arg->arg = mt6360_verify_level(fl_arg->arg);
 		pr_debug("FLASH_IOC_GET_DUTY_CURRENT(%d): %d\n",
 				channel, (int)fl_arg->arg);
-		fl_arg->arg = mt6360_current[fl_arg->arg];
+		#ifdef VENDOR_EDIT
+		/*Tan.Bowen@Camera.Driver 20191112 add for project 19357*/
+		if (is_project(OPPO_19354) || is_project(OPPO_19357) || is_project(OPPO_19358) || is_project(OPPO_19359))
+		{
+			fl_arg->arg = mt6360_current_19357[fl_arg->arg];
+		}
+		else
+		#endif
+		{
+			fl_arg->arg = mt6360_current[fl_arg->arg];
+		}
 		break;
 
 	case FLASH_IOC_GET_HW_TIMEOUT:

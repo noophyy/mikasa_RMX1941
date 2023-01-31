@@ -37,7 +37,14 @@ struct gauge_consumer {
 	int (*callback)(struct gauge_consumer *);
 	struct list_head list;
 };
-
+#ifdef ODM_HQ_EDIT
+/*liu.Yong@RM.CM.BSP.CHG.Basic 2020.05.15 add for charging*/
+#define CHARGER_CURRENT_LIMET_500MA	0
+#define CHARGER_CURRENT_LIMET_900MA	1
+#define CHARGER_CURRENT_LIMET_1200MA	2
+#define CHARGER_CURRENT_LIMET_1500MA	3
+#define CHARGER_CURRENT_LIMET_2000MA	4
+#endif /*ODM_HQ_EDIT*/
 extern void gauge_coulomb_service_init(void);
 extern void gauge_coulomb_consumer_init(struct gauge_consumer *coulomb,
 	struct device *dev, char *name);
@@ -70,6 +77,6 @@ extern signed int battery_get_bat_temperature(void);
 extern signed int battery_get_ibus(void);
 extern signed int battery_get_vbus(void);
 extern signed int battery_get_bat_avg_current(void);
-extern signed int battery_meter_get_charger_voltage(void);
+
 
 #endif /* End of _FUEL_GAUGE_GM_30_H */

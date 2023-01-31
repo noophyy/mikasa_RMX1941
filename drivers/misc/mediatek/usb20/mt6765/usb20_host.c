@@ -82,8 +82,20 @@ static struct charger_device *primary_charger;
 
 struct device_node		*usb_node;
 static int iddig_eint_num;
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add for otg*/
+static int iddig_pin;
+static struct pinctrl * pinctrl;
+static struct pinctrl_state * pinctrl_high;
+static struct pinctrl_state * pinctrl_low;
+static int iddig_pin_state;
+static void otg_request_irq(void);
+#endif /*ODM_HQ_EDIT*/
 static ktime_t ktime_start, ktime_end;
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 Delet for otg*/
 static struct delayed_work register_iddig_work;
+#endif /*ODM_HQ_EDIT*/
 
 static struct musb_fifo_cfg fifo_cfg_host[] = {
 { .hw_ep_num = 1, .style = MUSB_FIFO_TX,
@@ -453,6 +465,35 @@ void switch_int_to_host(struct musb *musb)
 	DBG(0, "switch_int_to_host is done\n");
 }
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add _switch func*/
+extern int otg_switch;
+extern int otg_online;
+void otg_switch_mode(int value)
+{
+	if (value == 1)
+	{
+		otg_request_irq();
+		//enable_irq(iddig_eint_num);//Do not nedd for Q
+		iddig_pin_state = __gpio_get_value(iddig_pin);
+		pr_err("iddig_pin1 = %d\n",iddig_pin_state);
+	}
+	else if (value == 0)
+	{
+		disable_irq(iddig_eint_num);
+		if (otg_online == 1)
+		{
+			mt_usb_host_disconnect(0);
+			iddig_req_host = false;
+		}
+		free_irq(iddig_eint_num, NULL);
+		pinctrl_select_state(pinctrl,pinctrl_low);
+		iddig_pin_state = __gpio_get_value(iddig_pin);
+		pr_err("iddig_pin12 = %d\n",iddig_pin_state);
+	}
+}
+#endif /*ODM_HQ_EDIT*/
+
 static void do_host_plug_test_work(struct work_struct *data)
 {
 	static ktime_t ktime_begin, ktime_end;
@@ -703,12 +744,50 @@ static const struct of_device_id otg_iddig_of_match[] = {
 	{},
 };
 
-static int otg_iddig_probe(struct platform_device *pdev)
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add is_otg file node*/
+static ssize_t mt_usb_show_is_otg(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	if (!dev) {
+		DBG(0, "dev is null!!\n");
+		return 0;
+	}
+	return scnprintf(buf, PAGE_SIZE, "%d\n", iddig_req_host);
+}
+
+DEVICE_ATTR(is_otg, 0444, mt_usb_show_is_otg, NULL);
+
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add for OTG*/
+static void otg_request_irq(void)
 {
 	int ret;
+	pinctrl_select_state(pinctrl,pinctrl_high);
+	iddig_eint_num = __gpio_to_irq(iddig_pin);
+	ret = request_irq(iddig_eint_num, mt_usb_ext_iddig_int,
+					IRQF_TRIGGER_LOW, "USB_IDDIG", NULL);
+	if (ret) {
+		DBG(0,
+			"request EINT <%d> fail, ret<%d>\n",
+	 		iddig_eint_num, ret);
+		pinctrl_select_state(pinctrl,pinctrl_low);
+		return;
+	}
+}
+#endif /*ODM_HQ_EIDT*/
+
+static int otg_iddig_probe(struct platform_device *pdev)
+{
+
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 Delet for otg*/
+	int ret;
+#endif /*ODM_HQ_EDIT*/
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 Delet for otg*/
 	iddig_eint_num = irq_of_parse_and_map(node, 0);
 	DBG(0, "iddig_eint_num<%d>\n", iddig_eint_num);
 	if (iddig_eint_num < 0)
@@ -722,7 +801,38 @@ static int otg_iddig_probe(struct platform_device *pdev)
 			iddig_eint_num, ret);
 		return ret;
 	}
+#endif /*ODM_HQ_EDIT*/
 
+#ifdef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add for OTG*/
+	device_create_file(mtk_musb->controller, &dev_attr_is_otg);
+	iddig_pin = of_get_named_gpio(node, "usbid-gpio", 0);
+	pr_err("iddig_pin = %d\n",iddig_pin);
+	if (iddig_pin < 0)
+		return -ENODEV;
+	pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(pinctrl))
+	{
+		pr_err("get pinctrl fail\n");
+		return -ENXIO;
+	}
+	pinctrl_high = pinctrl_lookup_state(pinctrl,"iddig_init");
+	if (IS_ERR(pinctrl_high))
+	{
+		pr_err("get pinctrl_init fail\n");
+		return -ENXIO;
+	}
+	pinctrl_low = pinctrl_lookup_state(pinctrl,"iddig_low");
+	if (IS_ERR(pinctrl_low))
+	{
+		pr_err("get pinctrl_low fail\n");
+		return -ENXIO;
+	}
+	if (otg_switch == 1)
+		otg_request_irq();
+	else
+		pinctrl_select_state(pinctrl,pinctrl_low);
+#endif /*ODM_HQ_EIDT*/
 	return 0;
 }
 
@@ -737,7 +847,8 @@ static struct platform_driver otg_iddig_driver = {
 	},
 };
 
-
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add for OTG*/
 static void iddig_int_init_work(struct work_struct *data)
 {
 	int	ret = 0;
@@ -746,6 +857,18 @@ static void iddig_int_init_work(struct work_struct *data)
 	if (ret)
 		DBG(0, "ret:%d\n", ret);
 }
+#else /*ODM_HQ_EIDT*/
+static int iddig_int_init(void)
+{
+	int	ret = 0;
+
+	ret = platform_driver_register(&otg_iddig_driver);
+	if (ret)
+		DBG(0, "ret:%d\n", ret);
+
+	return 0;
+}
+#endif /*ODM_HQ_EIDT*/
 
 void mt_usb_otg_init(struct musb *musb)
 {
@@ -781,9 +904,14 @@ void mt_usb_otg_init(struct musb *musb)
 #endif
 #else
 	DBG(0, "host controlled by IDDIG\n");
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add for OTG*/
 	INIT_DELAYED_WORK(&register_iddig_work, iddig_int_init_work);
 	queue_delayed_work(mtk_musb->st_wq, &register_iddig_work,
 					   msecs_to_jiffies(1000));
+#else /*ODM_HQ_EIDT*/
+	iddig_int_init();
+#endif /*ODM_HQ_EIDT*/
 	vbus_control = 1;
 #endif
 
@@ -870,9 +998,14 @@ static int set_option(const char *val, const struct kernel_param *kp)
 	switch (local_option) {
 	case 0:
 		DBG(0, "case %d\n", local_option);
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.USB.OTG 2020.5.15 add for OTG*/
 		INIT_DELAYED_WORK(&register_iddig_work, iddig_int_init_work);
 		queue_delayed_work(mtk_musb->st_wq,
 				&register_iddig_work, 0);
+#else /*ODM_HQ_EIDT*/
+		iddig_int_init();
+#endif /*ODM_HQ_EIDT*/
 		break;
 	case 1:
 		DBG(0, "case %d\n", local_option);

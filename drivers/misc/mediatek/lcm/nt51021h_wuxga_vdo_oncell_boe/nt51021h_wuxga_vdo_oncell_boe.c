@@ -380,7 +380,7 @@ static void lcm_get_params(struct LCM_PARAMS *params)
 #if (LCM_DSI_CMD_MODE)
 	params->dsi.PLL_CLOCK = 270;
 #else
-	params->dsi.PLL_CLOCK = 504;
+	params->dsi.PLL_CLOCK = 480;
 #endif
 	/* params->dsi.PLL_CK_CMD = 220; */
 	/* params->dsi.PLL_CK_VDO = 255; */
@@ -500,7 +500,7 @@ static void lcm_setbacklight(unsigned int level)
 
 static unsigned int lcm_ata_check(unsigned char *buffer)
 {
-#if 0 /* ndef BUILD_LK */
+#ifndef BUILD_LK
 	unsigned int ret = 0;
 	unsigned int x0 = FRAME_WIDTH / 4;
 	unsigned int x1 = FRAME_WIDTH * 3 / 4;
@@ -546,7 +546,7 @@ static unsigned int lcm_ata_check(unsigned char *buffer)
 	dsi_set_cmdq(data_array, 3, 1);
 	return ret;
 #else
-	return 1;
+	return 0;
 #endif
 }
 

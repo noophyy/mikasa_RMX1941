@@ -18,11 +18,24 @@
 struct alsps_context *alsps_context_obj /* = NULL*/;
 struct platform_device *pltfm_dev;
 int last_als_report_data = -1;
+#ifdef ODM_HQ_EDIT
+    /* zhanghuan@ODM_HQ.BSP.Sensors.Config, 2019/03/02, add als node for als_offset cali */
+int als_offset = 0;
+int dark_code = 0;
+#endif
 
 /* AAL default delay timer(nano seconds)*/
 #define AAL_DELAY 200000000
 
 static struct alsps_init_info *alsps_init_list[MAX_CHOOSE_ALSPS_NUM] = {0};
+atomic_t prox_state;
+enum ProxState {
+#ifdef VENDOR_EDIT
+/*zhq@PSW.BSP.Sensor, 2018/11/20, Add for change prox state*/
+	PROX_STATE_FAR,
+	PROX_STATE_NEAR,
+#endif /*VENDOR_EDIT*/
+};
 
 int als_data_report(int value, int status)
 {
@@ -34,6 +47,20 @@ int als_data_report(int value, int status)
 
 	cxt = alsps_context_obj;
 	/* pr_debug(" +als_data_report! %d, %d\n", value, status); */
+#ifdef ODM_HQ_EDIT
+    /* zhanghuan@ODM_HQ.BSP.Sensors.Config, 2019/03/02, add als node for als_offset cali */
+        dark_code = value;
+        if(value >= als_offset)
+                value = value - als_offset;
+        else
+                value = 0;
+        /* zhanghuan@ODM_HQ.BSP.Sensors.Config, 2019/03/22, reset als to zero when lux less than 4 */
+        if(value < 4)
+        {
+                pr_debug("lux less than 4:%d\n", value);
+                value = 0;
+        }
+#endif
 	/* force trigger data update after sensor enable. */
 	if (cxt->is_get_valid_als_data_after_enable == false) {
 		event.handle = ID_LIGHT;
@@ -42,14 +69,17 @@ int als_data_report(int value, int status)
 		err = sensor_input_event(cxt->als_mdev.minor, &event);
 		cxt->is_get_valid_als_data_after_enable = true;
 	}
-	if (value != last_als_report_data) {
+	#ifndef VENDOR_EDIT
+	//YanChen@PSW.BSP.sensor,2018/12/10, remove
+	if (value != last_als_report_data) 
+	#endif
+	{
 		event.handle = ID_LIGHT;
 		event.flush_action = DATA_ACTION;
 		event.word[0] = value;
 		event.status = status;
 		err = sensor_input_event(cxt->als_mdev.minor, &event);
-		if (err >= 0)
-			last_als_report_data = value;
+		last_als_report_data = value;
 	}
 	return err;
 }
@@ -113,6 +143,11 @@ int rgbw_flush_report(void)
 	return err;
 }
 
+#ifdef VENDOR_EDIT
+/*zhq@PSW.BSP.Sensor, 2018/11/20, Add for prox report count*/
+extern uint32_t kernel_prox_report_count;
+#endif /*VENDOR_EDIT*/
+
 int ps_data_report(int value, int status)
 {
 	int err = 0;
@@ -123,6 +158,12 @@ int ps_data_report(int value, int status)
 	pr_notice("[ALS/PS]%s! %d, %d\n", __func__, value, status);
 	event.flush_action = DATA_ACTION;
 	event.word[0] = value + 1;
+#ifdef VENDOR_EDIT
+/*zhq@PSW.BSP.Sensor, 2018/11/20, Add for prox report count*/
+	event.word[1] = kernel_prox_report_count;
+
+	pr_notice("[ALS/PS] ps_data_report! value %d, count %d\n", value, event.word[1]);
+#endif /*VENDOR_EDIT*/
 	event.status = status;
 	err = sensor_input_event(alsps_context_obj->ps_mdev.minor, &event);
 	return err;
@@ -283,6 +324,7 @@ static struct alsps_context *alsps_context_alloc_object(void)
 		pr_err("Alloc alsps object error!\n");
 		return NULL;
 	}
+	atomic_set(&prox_state, PROX_STATE_FAR);
 	atomic_set(&obj->delay_als,
 		   200); /*5Hz, set work queue delay time 200ms */
 	atomic_set(&obj->delay_ps,
@@ -506,8 +548,11 @@ static ssize_t als_store_batch(struct device *dev,
 {
 	struct alsps_context *cxt = alsps_context_obj;
 	int handle = 0, flag = 0, err = 0;
+	#ifndef VENDOR_EDIT
+	//Yan.Chen@BSP.PSW.sensor,2019/03/08,add for RGBW rate
 	int64_t delay_ns = 0;
 	int64_t latency_ns = 0;
+	#endif
 
 	pr_debug("%s %s\n", __func__, buf);
 	err = sscanf(buf, "%d,%d,%lld,%lld", &handle, &flag, &cxt->als_delay_ns,
@@ -529,8 +574,14 @@ static ssize_t als_store_batch(struct device *dev,
 		err = als_enable_and_batch();
 #endif
 	} else if (handle == ID_RGBW) {
-		cxt->rgbw_delay_ns = delay_ns;
-		cxt->rgbw_latency_ns = latency_ns;
+               #ifdef VENDOR_EDIT
+               //Yan.Chen@BSP.PSW.sensor,2019/03/08,add for RGBW rate
+               cxt->rgbw_delay_ns = cxt->als_delay_ns;
+               cxt->rgbw_latency_ns = cxt->als_latency_ns;
+               #else
+               cxt->rgbw_delay_ns = delay_ns;
+               cxt->rgbw_latency_ns = latency_ns;
+               #endif
 #if defined(CONFIG_NANOHUB) && defined(CONFIG_MTK_ALSPSHUB)
 		if (cxt->als_ctl.is_support_batch)
 			err = cxt->als_ctl.rgbw_batch(0, cxt->rgbw_delay_ns,
@@ -853,7 +904,34 @@ static ssize_t ps_store_cali(struct device *dev, struct device_attribute *attr,
 	vfree(cali_buf);
 	return count;
 }
+#ifdef ODM_HQ_EDIT
+    /* zhanghuan@ODM_HQ.BSP.Sensors.Config, 2019/03/2, add als node for als_offset cali */
+static ssize_t als_show_offset(struct device *dev, struct device_attribute *attr,
+                             char *buf)
+{
+        return snprintf(buf, PAGE_SIZE, "%d\n", als_offset);
+}
 
+static ssize_t als_store_offset(struct device *dev, struct device_attribute *attr,
+                                  const char *buf, size_t count)
+{
+        sscanf(buf, "%d", &als_offset);
+        if(als_offset > 50 || als_offset < 0)
+        {
+                als_offset = 0;
+                pr_err("als_offset beyond [0-50]:%d\n", als_offset);
+        }
+        else
+                pr_notice("als set offset:%d\n", als_offset);
+        return count;
+}
+
+static ssize_t als_show_dark(struct device *dev, struct device_attribute *attr,
+                             char *buf)
+{
+        return snprintf(buf, PAGE_SIZE, "%d\n", dark_code);
+}
+#endif
 static int als_ps_remove(struct platform_device *pdev)
 {
 	pr_debug("%s\n", __func__);
@@ -984,6 +1062,11 @@ DEVICE_ATTR(alsbatch, 0644, als_show_batch, als_store_batch);
 DEVICE_ATTR(alsflush, 0644, als_show_flush, als_store_flush);
 DEVICE_ATTR(alsdevnum, 0644, als_show_devnum, NULL);
 DEVICE_ATTR(alscali, 0644, NULL, als_store_cali);
+#ifdef ODM_HQ_EDIT
+    /* zhanghuan@ODM_HQ.BSP.Sensors.Config, 2019/03/02, add als node for als_offset cali */
+DEVICE_ATTR(alsoffset, 0644, als_show_offset, als_store_offset);
+DEVICE_ATTR(alsdark, 0644, als_show_dark, NULL);
+#endif
 DEVICE_ATTR(psactive, 0644, ps_show_active, ps_store_active);
 DEVICE_ATTR(psbatch, 0644, ps_show_batch, ps_store_batch);
 DEVICE_ATTR(psflush, 0644, ps_show_flush, ps_store_flush);

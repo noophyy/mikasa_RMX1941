@@ -118,9 +118,9 @@ static long ged_dispatch(struct file *pFile, GED_BRIDGE_PACKAGE *psBridgePackage
 
 	/* We make sure the both size are GE 0 integer.
 	 */
+
 	if (psBridgePackageKM->i32InBufferSize > 0 &&
 		psBridgePackageKM->i32OutBufferSize > 0) {
-
 		if (psBridgePackageKM->i32InBufferSize > 0) {
 			inputBufferSize =
 					psBridgePackageKM->i32InBufferSize;

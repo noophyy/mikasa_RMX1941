@@ -137,7 +137,6 @@ obj-$(CONFIG_MD32_SUPPORT)     += md32/
 obj-$(CONFIG_USB)	+= usb_boost/
 obj-$(CONFIG_MU3_PHY)   += mu3phy/
 obj-$(CONFIG_USB_MU3D_DRV)	+= mu3d/
-obj-$(CONFIG_USB_MTK_DUALMODE)	+= xhci/
 obj-$(CONFIG_MTK_SYS_CIRQ) += cirq/
 obj-y += atf/
 obj-$(CONFIG_THERMAL)   += thermal/
@@ -162,7 +161,3 @@ obj-y += perf/
 
 #io boost
 obj-y += io_boost/
-
-ifeq ($(CONFIG_MTK_HAVE_EXTERNAL_VENDOR_PATH),y)
-obj-y += ../../../../$(subst $\",,$(CONFIG_MTK_EXTERNAL_VENDOR_PATH))
-endif

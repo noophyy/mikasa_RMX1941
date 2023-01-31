@@ -21,7 +21,9 @@
 #include <linux/pinctrl/pinctrl.h>
 #include "imgsensor_hw.h"
 #include "imgsensor_common.h"
-
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 enum GPIO_CTRL_STATE_CAM {
 	/* Main */
 	GPIO_CTRL_STATE_PDN_H,
@@ -34,6 +36,16 @@ enum GPIO_CTRL_STATE_CAM {
 	GPIO_CTRL_STATE_LDO_VCAMD_L,
 	GPIO_CTRL_STATE_LDO_VCAMIO_H,
 	GPIO_CTRL_STATE_LDO_VCAMIO_L,
+	#ifdef VENDOR_EDIT
+	/* Feiping.Li@Cam.Drv, 20190912, driver porting */
+	GPIO_CTRL_STATE_LDO_VCAMA_1_H,
+	GPIO_CTRL_STATE_LDO_VCAMA_1_L,
+	/* Henry.Chang@Camera.Driver add for vcamaf 20191016 */
+	GPIO_CTRL_STATE_LDO_VCAMD1_H,
+	GPIO_CTRL_STATE_LDO_VCAMD1_L,
+	GPIO_CTRL_STATE_LDO_VCAMAF_H,
+	GPIO_CTRL_STATE_LDO_VCAMAF_L,
+	#endif
 	GPIO_CTRL_STATE_MAX_NUM_CAM,
 };
 
@@ -43,6 +55,11 @@ enum GPIO_CTRL_STATE_SWITCH {
 	GPIO_CTRL_STATE_MIPI_SWITCH_EN_L,
 	GPIO_CTRL_STATE_MIPI_SWITCH_SEL_H,
 	GPIO_CTRL_STATE_MIPI_SWITCH_SEL_L,
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Camera.Drv add for 19597 mlck switch 20191016*/
+	GPIO_CTRL_STATE_MCLK_SWITCH_EN_H,
+	GPIO_CTRL_STATE_MCLK_SWITCH_EN_L,
+	#endif
 	GPIO_CTRL_STATE_MAX_NUM_SWITCH,
 };
 #endif

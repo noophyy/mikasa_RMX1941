@@ -31,6 +31,15 @@
 #include "primary_display.h"
 #include "mt-plat/mtk_chip.h"
 
+#ifdef VENDOR_EDIT
+/*
+* Ling.Guo@PSW.MM.Display.LCD.Stability, 2019/01/21,
+* add for dimming layer HBM mode
+*/
+#include <soc/oppo/oppo_project.h>
+extern bool oppo_display_aod_ramless_support;
+#endif /*VENDOR_EDIT*/
+
 /* use this magic_code to detect memory corruption */
 #define MAGIC_CODE 0xDEADAAA0U
 
@@ -140,7 +149,10 @@ static struct {
 	{DISP_OPT_REG_PARSER_RAW_DUMP, 0, "DISP_OPT_REG_PARSER_RAW_DUMP"},
 	{DISP_OPT_PQ_REG_DUMP, 0, "DISP_OPT_PQ_REG_DUMP"},
 	{DISP_OPT_AOD, 0, "DISP_OPT_AOD"},
+#ifdef VENDOR_EDIT
+/* YongPeng.Yi@PSW.MM.Display.LCD.Stability, 2019/10/22, add for 19151 fake aod */
 	{DISP_OPT_AOD_RAMLESS, 0, "DISP_OPT_AOD_RAMLESS"},
+#endif /*VENDOR_EDIT*/
 	{DISP_OPT_ARR_PHASE_1, 0, "DISP_OPT_ARR_PHASE_1"},
 	{DISP_OPT_RSZ, 0, "DISP_OPT_RSZ"},
 	{DISP_OPT_RPO, 0, "DISP_OPT_RPO"},
@@ -426,7 +438,14 @@ void disp_helper_option_init(void)
 
 	disp_helper_set_option(DISP_OPT_AOD, 1);
 
-	disp_helper_set_option(DISP_OPT_AOD_RAMLESS, 0);
+#ifdef VENDOR_EDIT
+/* YongPeng.Yi@PSW.MM.Display.LCD.Stability, 2019/10/22, add for 19151 fake aod */
+	if (oppo_display_aod_ramless_support) {
+		disp_helper_set_option(DISP_OPT_AOD_RAMLESS, 1);
+	} else {
+		disp_helper_set_option(DISP_OPT_AOD_RAMLESS, 0);
+	}
+#endif /*VENDOR_EDIT*/
 
 	/* ARR phase 1 option */
 	disp_helper_set_option(DISP_OPT_ARR_PHASE_1, 0);
@@ -443,7 +462,7 @@ void disp_helper_option_init(void)
 	/* OVL SBCH */
 	disp_helper_set_option(DISP_OPT_OVL_SBCH, 1);
 	disp_helper_set_option(DISP_OPT_MMPATH, 0);
-	disp_helper_set_option(DISP_OPT_LCM_HBM, 1);
+	disp_helper_set_option(DISP_OPT_LCM_HBM, 0);
 }
 
 int disp_helper_get_option_list(char *stringbuf, int buf_len)

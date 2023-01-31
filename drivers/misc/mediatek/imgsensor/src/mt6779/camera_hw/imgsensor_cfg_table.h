@@ -18,10 +18,18 @@
 #define __IMGSENSOR_CFG_TABLE_H__
 
 #define IMGSENSOR_DEV_NAME "kd_camera_hw"
-
-
 #define IMGSENSOR_HW_POWER_INFO_MAX	12
 #define IMGSENSOR_HW_SENSOR_MAX_NUM	12
+
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
+
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#define MIPI_SWITCH
+#endif
 
 enum IMGSENSOR_HW_PIN {
 	IMGSENSOR_HW_PIN_NONE = 0,
@@ -30,9 +38,20 @@ enum IMGSENSOR_HW_PIN {
 	IMGSENSOR_HW_PIN_AVDD,
 	IMGSENSOR_HW_PIN_DVDD,
 	IMGSENSOR_HW_PIN_DOVDD,
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Camera.Driver add for P80_18151*/
+	IMGSENSOR_HW_PIN_AVDD_1,
+	/*Henry.Chang@Cam.Drv add for 19597/19551 afvdd switch 20191016*/
+	IMGSENSOR_HW_PIN_DVDD_1,
+	IMGSENSOR_HW_PIN_AFVDD,
+	#endif
 #ifdef MIPI_SWITCH
 	IMGSENSOR_HW_PIN_MIPI_SWITCH_EN,
 	IMGSENSOR_HW_PIN_MIPI_SWITCH_SEL,
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Cam.Drv add for 19597 mclk switch 20191016*/
+	IMGSENSOR_HW_PIN_MCLK_SWITCH_EN,
+	#endif
 #endif
 	IMGSENSOR_HW_PIN_MCLK,
 	IMGSENSOR_HW_PIN_MAX_NUM,
@@ -65,10 +84,16 @@ enum IMGSENSOR_HW_PIN_STATE {
 #define DVDD        IMGSENSOR_HW_PIN_DVDD
 #define DOVDD       IMGSENSOR_HW_PIN_DOVDD
 #define VDD_None    IMGSENSOR_HW_PIN_NONE
-
-	/* For backward compatible */
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Driver add for P80_18151*/
+#define AVDD_1      IMGSENSOR_HW_PIN_AVDD_1
+/*Henry.Chang@Cam.Drv add for 19597/19551 afvdd switch 20191016*/
+#define DVDD_1      IMGSENSOR_HW_PIN_DVDD_1
+#define AFVDD       IMGSENSOR_HW_PIN_AFVDD
+#else
+/* For backward compatible */
 #define AFVDD       IMGSENSOR_HW_PIN_UNDEF
-
+#endif
 
 /* Voltage */
 #define Vol_Low   IMGSENSOR_HW_PIN_STATE_LEVEL_0
@@ -99,12 +124,21 @@ enum IMGSENSOR_HW_ID {
 
 #define IMGSENSOR_I2C_OF_DRV_NAME_0 "mediatek,camera_main"
 #define IMGSENSOR_I2C_OF_DRV_NAME_1 "mediatek,camera_sub"
-#define IMGSENSOR_I2C_OF_DRV_NAME_2 "mediatek,camera_main_hw"
+#define IMGSENSOR_I2C_OF_DRV_NAME_2 "mediatek,camera_main_two"
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#define IMGSENSOR_I2C_DRV_NAME_3  "kd_camera_hw_bus3"
+#define IMGSENSOR_I2C_OF_DRV_NAME_3 "mediatek,camera_sub_two"
+#endif
 
 enum IMGSENSOR_I2C_DEV {
 	IMGSENSOR_I2C_DEV_0,
 	IMGSENSOR_I2C_DEV_1,
 	IMGSENSOR_I2C_DEV_2,
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+	IMGSENSOR_I2C_DEV_3,
+	#endif
 	IMGSENSOR_I2C_DEV_MAX_NUM,
 };
 

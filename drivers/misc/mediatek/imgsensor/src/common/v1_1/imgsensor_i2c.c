@@ -14,16 +14,30 @@
 #include "imgsensor_common.h"
 #include "imgsensor_i2c.h"
 #include <linux/ratelimit.h>
-
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 struct IMGSENSOR_I2C gi2c;
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+struct mutex i2c_resource_mutex;
 
+static const struct i2c_device_id gi2c_dev_id[] = {
+	{IMGSENSOR_I2C_DRV_NAME_0, 0},
+	{IMGSENSOR_I2C_DRV_NAME_1, 0},
+	{IMGSENSOR_I2C_DRV_NAME_2, 0},
+	{IMGSENSOR_I2C_DRV_NAME_3, 0},
+	{}
+};
+#else
 static const struct i2c_device_id gi2c_dev_id[] = {
 	{IMGSENSOR_I2C_DRV_NAME_0, 0},
 	{IMGSENSOR_I2C_DRV_NAME_1, 0},
 	{IMGSENSOR_I2C_DRV_NAME_2, 0},
 	{}
 };
-
+#endif
 #ifdef CONFIG_OF
 static const struct of_device_id gof_device_id_0[] = {
 	{.compatible = IMGSENSOR_I2C_OF_DRV_NAME_0,},
@@ -39,6 +53,13 @@ static const struct of_device_id gof_device_id_2[] = {
 	{.compatible = IMGSENSOR_I2C_OF_DRV_NAME_2,},
 	{}
 };
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+static const struct of_device_id gof_device_id_3[] = {
+	{.compatible = IMGSENSOR_I2C_OF_DRV_NAME_3,},
+	{}
+};
+#endif
 #endif
 
 static int imgsensor_i2c_probe_0(struct i2c_client *client,
@@ -61,6 +82,15 @@ static int imgsensor_i2c_probe_2(struct i2c_client *client,
 	gi2c.inst[IMGSENSOR_I2C_DEV_2].pi2c_client = client;
 	return 0;
 }
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+static int imgsensor_i2c_probe_3(struct i2c_client *client,
+				const struct i2c_device_id *id)
+{
+	gi2c.inst[IMGSENSOR_I2C_DEV_3].pi2c_client = client;
+	return 0;
+}
+#endif
 
 static int imgsensor_i2c_remove(struct i2c_client *client)
 {
@@ -103,7 +133,22 @@ static struct i2c_driver gi2c_driver[IMGSENSOR_I2C_DEV_MAX_NUM] = {
 #endif
 		},
 		.id_table = gi2c_dev_id,
+	},
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+	{
+		.probe = imgsensor_i2c_probe_3,
+		.remove = imgsensor_i2c_remove,
+		.driver = {
+		.name = IMGSENSOR_I2C_DRV_NAME_3,
+		.owner = THIS_MODULE,
+#ifdef CONFIG_OF
+		.of_match_table = gof_device_id_3,
+#endif
+		},
+		.id_table = gi2c_dev_id,
 	}
+	#endif
 };
 
 enum IMGSENSOR_RETURN imgsensor_i2c_create(void)
@@ -139,6 +184,7 @@ enum IMGSENSOR_RETURN imgsensor_i2c_init(
 	pi2c_cfg->pi2c_driver = &gi2c_driver[device];
 
 	mutex_init(&pi2c_cfg->i2c_mutex);
+	mutex_init(&i2c_resource_mutex);
 
 	return IMGSENSOR_RETURN_SUCCESS;
 }
@@ -182,19 +228,19 @@ enum IMGSENSOR_RETURN imgsensor_i2c_read(
 
 	mutex_lock(&pi2c_cfg->i2c_mutex);
 
-	pinst->msg[0].addr  = id >> 1;
-	pinst->msg[0].flags = 0;
-	pinst->msg[0].len   = write_length;
-	pinst->msg[0].buf   = pwrite_data;
+	pi2c_cfg->msg[0].addr  = id >> 1;
+	pi2c_cfg->msg[0].flags = 0;
+	pi2c_cfg->msg[0].len   = write_length;
+	pi2c_cfg->msg[0].buf   = pwrite_data;
 
-	pinst->msg[1].addr  = id >> 1;
-	pinst->msg[1].flags = I2C_M_RD;
-	pinst->msg[1].len   = read_length;
-	pinst->msg[1].buf   = pread_data;
+	pi2c_cfg->msg[1].addr  = id >> 1;
+	pi2c_cfg->msg[1].flags = I2C_M_RD;
+	pi2c_cfg->msg[1].len   = read_length;
+	pi2c_cfg->msg[1].buf   = pread_data;
 
 	if (mtk_i2c_transfer(
 			pinst->pi2c_client->adapter,
-			pinst->msg,
+			pi2c_cfg->msg,
 			IMGSENSOR_I2C_MSG_SIZE_READ,
 			(pi2c_cfg->pinst->status.filter_msg)
 				? I2C_A_FILTER_MSG : 0,
@@ -225,7 +271,7 @@ enum IMGSENSOR_RETURN imgsensor_i2c_write(
 {
 	struct IMGSENSOR_I2C_INST *pinst = pi2c_cfg->pinst;
 	enum   IMGSENSOR_RETURN    ret   = IMGSENSOR_RETURN_SUCCESS;
-	struct i2c_msg     *pmsg  = pinst->msg;
+	struct i2c_msg     *pmsg  = pi2c_cfg->msg;
 	u8                 *pdata = pwrite_data;
 	u8                 *pend  = pwrite_data + write_length;
 	int i   = 0;
@@ -250,7 +296,7 @@ enum IMGSENSOR_RETURN imgsensor_i2c_write(
 
 	if (mtk_i2c_transfer(
 			pinst->pi2c_client->adapter,
-			pinst->msg,
+			pi2c_cfg->msg,
 			i,
 			(pi2c_cfg->pinst->status.filter_msg)
 				? I2C_A_FILTER_MSG : 0,
@@ -277,10 +323,59 @@ void imgsensor_i2c_filter_msg(struct IMGSENSOR_I2C_CFG *pi2c_cfg, bool en)
 }
 
 #ifdef IMGSENSOR_LEGACY_COMPAT
-struct IMGSENSOR_I2C_CFG *pgi2c_cfg_legacy;
+#include <linux/unistd.h>
+#include <linux/syscalls.h>
+
+
+
+struct IMGSENSOR_I2C_CFG *pgi2c_cfg_legacy[IMGSENSOR_SENSOR_IDX_MAX_NUM];
+pid_t tid_mapping[IMGSENSOR_SENSOR_IDX_MAX_NUM];
+
+
+
 void imgsensor_i2c_set_device(struct IMGSENSOR_I2C_CFG *pi2c_cfg)
 {
-	pgi2c_cfg_legacy = pi2c_cfg;
+	int i = 0;
+	pid_t _tid = sys_gettid();
+
+	mutex_lock(&i2c_resource_mutex);
+	if (pi2c_cfg == NULL) {
+		for (i = 0; i < IMGSENSOR_SENSOR_IDX_MAX_NUM; i++) {
+			if (tid_mapping[i] == _tid) {
+				pgi2c_cfg_legacy[i] = NULL;
+				tid_mapping[i] = 0;
+				break;
+			}
+		}
+	} else {
+		for (i = 0; i < IMGSENSOR_SENSOR_IDX_MAX_NUM; i++) {
+			if (tid_mapping[i] == 0) {
+				pgi2c_cfg_legacy[i] = pi2c_cfg;
+				tid_mapping[i] = _tid;
+				break;
+			}
+		}
+	}
+	mutex_unlock(&i2c_resource_mutex);
+	/* PK_DBG("set tid = %d i = %d pi2c_cfg %p\n", _tid, i, pi2c_cfg); */
+
+}
+struct IMGSENSOR_I2C_CFG *imgsensor_i2c_get_device(void)
+{
+	int i = 0;
+	struct IMGSENSOR_I2C_CFG *pi2c_cfg = NULL;
+	pid_t _tid = sys_gettid();
+	/* mutex_lock(&i2c_resource_mutex); */
+
+	for (i = 0; i < IMGSENSOR_SENSOR_IDX_MAX_NUM; i++) {
+		if (tid_mapping[i] == _tid) {
+			pi2c_cfg = pgi2c_cfg_legacy[i];
+			break;
+		}
+	}
+	/* mutex_unlock(&i2c_resource_mutex); */
+	/* PK_DBG("get tid %d, i =%d, pi2c_cfg %p\n",_tid, i,pi2c_cfg); */
+	return pi2c_cfg;
 }
 #endif
 

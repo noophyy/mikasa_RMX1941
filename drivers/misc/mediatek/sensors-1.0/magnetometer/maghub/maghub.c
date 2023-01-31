@@ -19,6 +19,10 @@
 #include "mag.h"
 #include <SCP_sensorHub.h>
 #include "SCP_power_monitor.h"
+#ifdef ODM_HQ_EDIT
+    /* Huan.Zhang@ODM_HQ.BSP.Sensors.Config, 2018/12/11, add sensor devinfo to proc/devinfo */
+#include <linux/hq_devinfo.h>
+#endif
 
 #define MAGHUB_DEV_NAME         "mag_hub"
 #define DRIVER_VERSION          "1.0.1"
@@ -216,18 +220,67 @@ static ssize_t show_regiter_map(struct device_driver *ddri, char *buf)
 
 	return _tLength;
 }
+
+#ifdef VENDOR_EDIT
+/*Fei.Mo@EXP.BSP.Sensor, 2017/06/29, Add for msensor auto test */
+static int selftest_result = 0;
+static ssize_t show_test_id(struct device_driver *ddri, char *buf)
+{
+	return scnprintf(buf, PAGE_SIZE, "%d\n", 1);
+}
+static ssize_t show_magnet_close(struct device_driver *ddri, char *buf)
+{
+	int result = 1;
+
+	return scnprintf(buf, PAGE_SIZE, "%d\n", result);
+}
+static ssize_t show_magnet_leave(struct device_driver *ddri, char *buf)
+{
+	ssize_t _tLength = 0;
+	int res;
+	res = sensor_set_cmd_to_hub(ID_MAGNETIC, CUST_ACTION_SELFTEST, &selftest_result);
+	pr_debug("selftest_result = %d\n",selftest_result);
+
+	_tLength = snprintf(buf, PAGE_SIZE, "%d\n", selftest_result);
+	return _tLength;
+}
+
+static ssize_t show_chip_selftest(struct device_driver *ddri, char *buf)
+{
+	ssize_t _tLength = 0;
+	int res;
+	res = sensor_set_cmd_to_hub(ID_MAGNETIC, CUST_ACTION_SELFTEST, &selftest_result);
+
+	_tLength = snprintf(buf, PAGE_SIZE, "%d\n", selftest_result);
+	return _tLength;
+}
+#endif /* VENDOR_EDIT */
 static DRIVER_ATTR(chipinfo, 0444, show_chipinfo_value, NULL);
 static DRIVER_ATTR(sensordata, 0444, show_sensordata_value, NULL);
 static DRIVER_ATTR(trace, 0644, show_trace_value, store_trace_value);
 static DRIVER_ATTR(orientation, 0644,
 	show_chip_orientation, store_chip_orientation);
 static DRIVER_ATTR(regmap, 0444, show_regiter_map, NULL);
+#ifdef VENDOR_EDIT
+/*Fei.Mo@EXP.BSP.Sensor, 2017/06/29, Add for msensor auto test */
+static DRIVER_ATTR(magnet_close, 0444, show_magnet_close, NULL);
+static DRIVER_ATTR(magnet_leave, 0444, show_magnet_leave, NULL);
+static DRIVER_ATTR(test_id, 0444, show_test_id, NULL);
+static DRIVER_ATTR(selftest, 0644, show_chip_selftest, NULL);
+#endif /* VENDOR_EDIT */
 static struct driver_attribute *maghub_attr_list[] = {
 	&driver_attr_chipinfo,
 	&driver_attr_sensordata,
 	&driver_attr_trace,
 	&driver_attr_orientation,
 	&driver_attr_regmap,
+#ifdef VENDOR_EDIT
+/*Fei.Mo@EXP.BSP.Sensor, 2017/06/29, Add for msensor auto test */
+	&driver_attr_magnet_close,
+	&driver_attr_magnet_leave,
+	&driver_attr_test_id,
+	&driver_attr_selftest,
+#endif /* VENDOR_EDIT */
 };
 static int maghub_create_attr(struct device_driver *driver)
 {
@@ -431,12 +484,13 @@ static int maghub_open_report_data(int open)
 static int maghub_get_data(int *x, int *y, int *z, int *status)
 {
 	char buff[MAGHUB_BUFSIZE] = {0};
-
-	maghub_GetMData(buff, MAGHUB_BUFSIZE);
-
-	if (sscanf(buff, "%x %x %x %x", x, y, z, status) != 4)
+        int ret = 0; 
+	ret = maghub_GetMData(buff, MAGHUB_BUFSIZE);
+        pr_err("maghub_GetMData ret =%d\n",ret);
+	
+        if (sscanf(buff, "%x %x %x %x", x, y, z, status) != 4)
 		pr_err("maghub_m_get_data sscanf fail!!\n");
-	return 0;
+	return ret;
 }
 static int scp_ready_event(uint8_t event, void *ptr)
 {
@@ -553,6 +607,10 @@ static int maghub_probe(struct platform_device *pdev)
 	struct maghub_ipi_data *data;
 	struct mag_control_path ctl = { 0 };
 	struct mag_data_path mag_data = { 0 };
+#ifdef ODM_HQ_EDIT
+    /* Huan.Zhang@ODM_HQ.BSP.Sensors.Config, 2018/12/11, add sensor devinfo to proc/devinfo */
+	struct sensorInfo_t devinfo;
+#endif
 
 	struct platform_driver *paddr =
 					maghub_init_info.platform_diver_addr;
@@ -629,6 +687,14 @@ static int maghub_probe(struct platform_device *pdev)
 	INIT_WORK(&data->init_done_work, scp_init_work_done);
 	scp_power_monitor_register(&scp_ready_notifier);
 
+#ifdef ODM_HQ_EDIT
+    /* Huan.Zhang@ODM_HQ.BSP.Sensors.Config, 2018/12/11, add sensor devinfo to proc/devinfo */
+	err = sensor_set_cmd_to_hub(ID_MAGNETIC,
+		CUST_ACTION_GET_SENSOR_INFO, &devinfo);
+	if( err == 0)
+		hq_register_sensor_info(MSENSOR_HQ, devinfo.name);
+#endif
+
 	return 0;
 
 create_attr_failed:
@@ -668,6 +734,18 @@ static int maghub_resume(struct platform_device *pdev)
 {
 	return 0;
 }
+#ifdef VENDOR_EDIT
+/*Yan.Chen@PSW.Sensor.BSP,2018/12/10,add*/
+static void maghub_shutdown(struct platform_device *pdev)
+{
+	int i;
+	for (i = 0; i < 2; i++)
+	{
+		pr_err("%s::i=%d\n", __func__, i);
+		maghub_enable(0);
+	}
+}
+#endif
 static struct platform_device maghub_device = {
 	.name = MAGHUB_DEV_NAME,
 	.id = -1,
@@ -681,6 +759,10 @@ static struct platform_driver maghub_driver = {
 	.remove = maghub_remove,
 	.suspend = maghub_suspend,
 	.resume = maghub_resume,
+#ifdef VENDOR_EDIT	
+/*Yan.Chen@PSW.Sensor.BSP,2018/12/10,add*/
+	.shutdown = maghub_shutdown,
+#endif	
 };
 
 static int maghub_local_remove(void)

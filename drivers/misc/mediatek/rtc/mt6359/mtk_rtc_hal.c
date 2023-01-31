@@ -118,6 +118,25 @@ u16 rtc_spare_reg[RTC_SPAR_NUM][3] = {
 	{RTC_SPAR0, 0x1, 7}
 	,
 	{RTC_AL_HOU, 0xff, 8}
+	,
+#ifdef VENDOR_EDIT
+/*xing.xiong@BSP.Kernel.Driver, 2018/11/16, Add for oppo boot mode*/
+	{RTC_SPAR0, 0x1, 8}
+	,
+	{RTC_SPAR0, 0x1, 9}
+	,
+	{RTC_SPAR0, 0x1, 10}
+	,
+	{RTC_SPAR0, 0x1, 11}
+	,
+	{RTC_AL_DOW, 0xff, 8}
+	,
+	{RTC_SPAR0, 0x1, 12}
+	,
+	{RTC_SPAR0, 0x1, 13},
+/*xiongxing@BSP.Kernel.Driver, 2019/02/27, Add for safemode*/
+	{RTC_SPAR0, 0x01, 15},
+#endif /* VENDOR_EDIT */
 };
 
 static int rtc_eosc_cali_td = 8;

@@ -16,7 +16,10 @@
 
 #include "kd_camera_typedef.h"
 #include "imgsensor_sensor.h"
-
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 struct IMGSENSOR_INIT_FUNC_LIST {
 	MUINT32   id;
 	MUINT8    name[32];
@@ -109,7 +112,7 @@ UINT32 S5K3H2YX_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K3H7Y_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K4H5YC_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K4H5YX_2LANE_MIPI_RAW_SensorInit(
-	struct SENSOR_FUNCTION_STRUCT **pfFunc);
+    struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K5E2YA_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K5CAGX_YUV_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 S5K4E1GA_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
@@ -173,6 +176,24 @@ UINT32 T4KA7_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 /*Others*/
 UINT32 ISX012_MIPI_YUV_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
 UINT32 T8EV5_YUV_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Driver 20181107 add for P80_18151 imgsensor driver*/
+UINT32 GC5035_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+UINT32 S5KGD1SP_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 HI846_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 OV02A10_MIPI_MONO_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 GC02M0_MIPI_MONO_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 GC02M0F_MIPI_MONO_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 S5KGW1_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 S5KGH1_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 S5K3M5_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 S5K3M5SX_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 GC8054_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 GC8054F_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+UINT32 GC2375H_MIPI_RAW_SensorInit(struct SENSOR_FUNCTION_STRUCT **pfFunc);
+extern struct IMGSENSOR_SENSOR_LIST gimgsensor_sensor_list_P90Q[];
+#endif
 
 extern struct IMGSENSOR_SENSOR_LIST gimgsensor_sensor_list[];
 

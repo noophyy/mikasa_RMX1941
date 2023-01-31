@@ -1960,8 +1960,10 @@ void battery_dump_nag(void)
 	vbat_val = nag_vbat_reg & 0x7fff;
 	nag_vbat_mv = REG_to_MV_value(vbat_val);
 
-	bm_err("[read_nafg_vbat] i:%d nag_vbat_reg 0x%x nag_vbat_mv %d:%d\n",
-		i, nag_vbat_reg, nag_vbat_mv, vbat_val);
+	bm_err("[read_nafg_vbat] i:%d nag_vbat_reg 0x%x nag_vbat_mv %d:%d %d\n",
+		i, nag_vbat_reg, nag_vbat_mv, vbat_val,
+		pmic_get_battery_voltage()
+		);
 
 	bm_err("[read_nafg_vbat1] %d %d %d %d %d %d %d %d %d\n",
 		pmic_get_register_value(PMIC_AUXADC_NAG_C_DLTV_IRQ),
@@ -2798,26 +2800,7 @@ static int fgauge_set_info(
 	if (ginfo == GAUGE_2SEC_REBOOT)
 		pmic_config_interface(
 		PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x0);
-	else if (ginfo == GAUGE_PL_CHARGING_STATUS)
-		pmic_config_interface(
-		PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x1);
-	else if (ginfo == GAUGE_MONITER_PLCHG_STATUS)
-		pmic_config_interface(
-		PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x2);
-	else if (ginfo == GAUGE_BAT_PLUG_STATUS)
-		pmic_config_interface(
-		PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x3);
-	else if (ginfo == GAUGE_IS_NVRAM_FAIL_MODE)
-		pmic_config_interface(
-		PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x4);
-	else if (ginfo == GAUGE_MONITOR_SOFF_VALIDTIME)
-		pmic_config_interface(
-		PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x5);
-	else if (ginfo == GAUGE_CON0_SOC) {
-		value = value / 100;
-		pmic_config_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x007F, 0x9);
-	} else
+	else
 		ret = -1;
 
 	return 0;
@@ -2830,25 +2813,7 @@ static int fgauge_get_info(
 
 	if (ginfo == GAUGE_2SEC_REBOOT)
 		pmic_read_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x0);
-	else if (ginfo == GAUGE_PL_CHARGING_STATUS)
-		pmic_read_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x1);
-	else if (ginfo == GAUGE_MONITER_PLCHG_STATUS)
-		pmic_read_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x2);
-	else if (ginfo == GAUGE_BAT_PLUG_STATUS)
-		pmic_read_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x3);
-	else if (ginfo == GAUGE_IS_NVRAM_FAIL_MODE)
-		pmic_read_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x4);
-	else if (ginfo == GAUGE_MONITOR_SOFF_VALIDTIME)
-		pmic_read_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x5);
-	else if (ginfo == GAUGE_CON0_SOC)
-		pmic_read_interface(
-			PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x007F, 0x9);
+		PMIC_SYSTEM_INFO_CON0_ADDR, value, 0x0001, 0x0);
 	else
 		ret = -1;
 

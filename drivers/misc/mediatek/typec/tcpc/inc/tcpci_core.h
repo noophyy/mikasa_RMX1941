@@ -484,6 +484,10 @@ struct tcpc_device {
 
 	/* TypeC Shield Protection */
 #ifdef CONFIG_WATER_DETECTION
+#ifdef VENDOR_EDIT
+/* Jianchao.Shi@BSP.CHG.Basic, 2019/04/15, sjc Add for do not enable polling when in WD */
+	bool wd_already;
+#endif
 	int usbid_calib;
 #endif /* CONFIG_WATER_DETECTION */
 #ifdef CONFIG_CABLE_TYPE_DETECTION

@@ -36,7 +36,11 @@ int __weak ipanic_atflog_buffer(void *data, unsigned char *buffer,
 {
 	return 0;
 }
-
+#ifdef VENDOR_EDIT
+//Zhang Jiashu@PSW.AD.Performance,2019/10/03,Add for flushing device cache before goto dump mode!
+extern bool is_triggering_panic;
+extern void flush_cache_on_panic(void);
+#endif  /*VENDOR_EDIT*/
 void __weak sysrq_sched_debug_show_at_AEE(void)
 {
 	pr_notice("%s weak function at %s\n", __func__, __FILE__);
@@ -145,6 +149,15 @@ EXPORT_SYMBOL(ipanic_recursive_ke);
 int mrdump_common_die(int fiq_step, int reboot_reason, const char *msg,
 		      struct pt_regs *regs)
 {
+#ifdef VENDOR_EDIT
+//Zhang Jiashu@PSW.AD.Performance,2019/10/03,Add for flushing device cache before goto dump mode!
+    if(!is_triggering_panic)
+    {
+        is_triggering_panic = true;
+        pr_notice("is_triggering_panic : true\n");
+        flush_cache_on_panic();
+    }
+#endif // VENDOR_EDIT
 	bust_spinlocks(1);
 	aee_disable_api();
 

@@ -30,7 +30,11 @@ ifeq ($(CONFIG_MTK_LENS_USE_MODULE), y)
 SUB2_CFILES += sub2_lens.c
 
 #SUB2_CFILES  += common/ak7371af/AK7371AF.c
-
+#ifdef VENDOR_EDIT
+#Henry.Chang@Camera.Drv add for main2AF 20190927
+SUB2_CFILES  += common/sem1215saf/SEM1215SAF.c
+SUB2_CFILES  += common/bu64253teaf/bu64253teaf.c
+#endif
 obj-m := sub2af.o
 sub2af-objs := $(SUB2_CFILES:.c=.o)
 
@@ -38,6 +42,9 @@ else
 
 obj-y += sub2_lens.o
 #obj-y += common/ak7371af/
-
-
+#ifdef VENDOR_EDIT
+#Henry.Chang@Camera.Drv add for sub2AF 20190927
+obj-y += common/sem1215saf/
+obj-y += common/bu64253teaf/
+#endif
 endif

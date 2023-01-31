@@ -53,7 +53,7 @@
 
 /* Global variable */
 int g_pmic_irq;
-unsigned int g_eint_pmic_num = 176;	/* TBD */
+//unsigned int g_eint_pmic_num = 176;	/* TBD */
 unsigned int g_cust_eint_mt_pmic_debounce_cn = 1;
 unsigned int g_cust_eint_mt_pmic_type = 4;
 unsigned int g_cust_eint_mt_pmic_debounce_en = 1;
@@ -63,6 +63,335 @@ unsigned int g_cust_eint_mt_pmic_debounce_en = 1;
 #define IRQ_HANDLER_READY 1
 
 /* Interrupt Setting */
+#ifdef VENDOR_EDIT
+/* ChaoYing.Chen@BSP.Power.Basic.1056413, 2017/12/11, Add for print wakeup source */
+unsigned int g_eint_pmic_num = 176;
+
+#define PMIC_INT_REG_WIDTH  16
+#define PMIC_INT_REG_NUMBER  16
+u64 pmic_wakesrc_x_count[PMIC_INT_REG_NUMBER][PMIC_INT_REG_WIDTH] = {
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+	 { 0 },
+};
+
+const char *pmic_interrupt_status_name[PMIC_INT_REG_NUMBER][PMIC_INT_REG_WIDTH] = {
+	{
+	[0] = " INT_VPU_OC",
+	[1] = " INT_VCORE_OC",
+	[2] = " INT_VGPU11_OC",
+	[3] = " INT_VGPU12_OC",
+	[4] = " INT_VMODEM_OC",
+	[5] = " INT_VPROC1_OC",
+	[6] = " INT_VPROC2_OC",
+	[7] = " INT_VS1_OC",
+	[8] = " INT_VS2_OC",
+	[9] = " INT_VPA_OC",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+
+	},
+	{
+	[0] = " ",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_VFE28_OC",
+	[1] = " INT_VXO22_OC",
+	[2] = " INT_VRF18_OC",
+	[3] = " INT_VRF12_OC",
+	[4] = " INT_VEFUSE_OC",
+	[5] = " INT_VCN33_1_OC",
+	[6] = " INT_VCN33_2_OC",
+	[7] = " INT_VCN13_OC",
+	[8] = " INT_VCN18_OC",
+	[9] = " INT_VA09_OC",
+	[10] = " INT_VCAMIO_OC",
+	[11] = " INT_VA12_OC",
+	[12] = " INT_VAUX18_OC",
+	[13] = " INT_VAUD18_OC",
+	[14] = " INT_VIO18_OC",
+	[15] = " INT_VSRAM_PROC1_OC",
+	},
+	{
+	[0] = " INT_VSRAM_PROC2_OC",
+	[1] = " INT_VSRAM_OTHERS_OC",
+	[2] = " INT_VSRAM_MD_OC",
+	[3] = " INT_VEMC_OC",
+	[4] = " INT_VSIM1_OC",
+	[5] = " INT_VSIM2_OC",
+	[6] = " INT_VUSB_OC",
+	[7] = " INT_VRFCK_OC",
+	[8] = " INT_VBBCK_OC",
+	[9] = " INT_VBIF28_OC",
+	[10] = " INT_VIBR_OC",
+	[11] = " INT_VIO28_OC",
+	[12] = " INT_VM18_OC",
+	[13] = " INT_VUFS_OC",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_PWRKEY",
+	[1] = " INT_HOMEKEY",
+	[2] = " INT_PWRKEY_R",
+	[3] = " INT_HOMEKEY_R",
+	[4] = " INT_NI_LBAT_INT",
+	[5] = " INT_CHRDET",
+	[6] = " INT_CHRDET_EDGE",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " ",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_RTC",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " ",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_FG_BAT_H",
+	[1] = " INT_FG_BAT_L",
+	[2] = " INT_FG_CUR_L",
+	[3] = " INT_FG_ZCV",
+	[4] = " ",
+	[5] = " ",
+	[6] = " INT_FG_N_CHARGE_L",
+	[7] = " INT_FG_IAVG_H",
+	[8] = " INT_FG_IAVG_L",
+	[9] = " ",
+	[10] = " INT_FG_DISCHARGE",
+	[11] = " INT_FG_CHARGE",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_BATON_LV",
+	[1] = " ",
+	[2] = " INT_BATON_BAT_IN",
+	[3] = " INT_BATON_BAT_OUT",
+	[4] = " INT_BIF",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_BAT_H",
+	[1] = " INT_BAT_L",
+	[2] = " INT_BAT2_H",
+	[3] = " INT_BAT2_L",
+	[4] = " INT_BAT_TEMP_H",
+	[5] = " INT_BAT_TEMP_L",
+	[6] = " INT_THR_H",
+	[7] = " INT_THR_L",
+	[8] = " INT_AUXADC_IMP",
+	[9] = " INT_NAG_C_DLTV",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " ",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_AUDIO",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " INT_ACCDET",
+	[6] = " INT_ACCDET_EINT0",
+	[7] = " INT_ACCDET_EINT1",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+		{
+	[0] = " ",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " INT_SPI_CMD_ALERT",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+	{
+	[0] = " ",
+	[1] = " ",
+	[2] = " ",
+	[3] = " ",
+	[4] = " ",
+	[5] = " ",
+	[6] = " ",
+	[7] = " ",
+	[8] = " ",
+	[9] = " ",
+	[10] = " ",
+	[11] = " ",
+	[12] = " ",
+	[13] = " ",
+	[14] = " ",
+	[15] = " ",
+	},
+};
+void mt_pmic_clear_wakesrc_count(void)
+{
+	int i = 0;
+	int j = 0;
+
+	for (i = 0; i < PMIC_INT_REG_NUMBER; i++){
+		for (j = 0; j < PMIC_INT_REG_WIDTH; j++){
+			pmic_wakesrc_x_count[i][j] = 0;
+		}
+	}
+}
+EXPORT_SYMBOL(mt_pmic_clear_wakesrc_count);
+#endif /* VENDOR_EDIT */
 static struct pmic_sp_irq buck_irqs[][PMIC_INT_WIDTH] = {
 	{
 		PMIC_SP_IRQ_GEN(1, 1, INT_VPROC_OC),
@@ -136,7 +465,12 @@ static struct pmic_sp_irq psc_irqs[][PMIC_INT_WIDTH] = {
 		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
 		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
 		PMIC_SP_IRQ_GEN(1, 1, INT_WATCHDOG),
+#ifndef ODM_HQ_EDIT
+/*Liu.Yong@RM.CM.BSP.CHG.Gauge 2020.05.15 modify for disable check battery exist*/
 		PMIC_SP_IRQ_GEN(1, 1, INT_VBATON_UNDET),
+#else /*ODM_HQ_EDIT*/
+		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
+#endif /*ODM_HQ_EDIT*/
 		PMIC_SP_IRQ_GEN(1, 1, INT_BVALID_DET),
 		PMIC_SP_IRQ_GEN(1, 0, INT_OV),
 		PMIC_SP_IRQ_GEN(0, 0, NO_USE),
@@ -279,6 +613,37 @@ struct pmic_sp_interrupt sp_interrupts[] = {
 };
 
 unsigned int sp_interrupt_size = ARRAY_SIZE(sp_interrupts);
+#ifdef VENDOR_EDIT
+/* ChaoYing.Chen@BSP.Power.Basic.1056413, 2017/12/11, Add for print wakeup source */
+int pmic_int_check(char * wakeup_name)
+{
+	unsigned int spNo, sp_conNo, j;
+	unsigned int status_reg;
+	unsigned int sp_int_status = 0;
+	int ret = -1;
+
+	for (spNo = 0; spNo < ARRAY_SIZE(sp_interrupts); spNo++) {
+		for (sp_conNo = 0; sp_conNo < sp_interrupts[spNo].con_len; sp_conNo++) {
+			status_reg = sp_interrupts[spNo].status + 0x6 * sp_conNo;
+			sp_int_status = upmu_get_reg_value(status_reg);
+			IRQLOG("[PMIC_INT] after, Reg[0x%x]=0x%x\n", status_reg, sp_int_status);
+
+       		for (j = 0; j < PMIC_INT_WIDTH; j++) {
+				if ((sp_int_status) & (1 << j)) {
+					IRQLOG("[PMIC_INT][%s]\n", sp_interrupts[spNo].sp_irqs[sp_conNo][j].name);
+					strcpy(wakeup_name, sp_interrupts[spNo].sp_irqs[sp_conNo][j].name);
+
+					ret = (2*spNo+sp_conNo)*j;
+					pmic_wakesrc_x_count[2*spNo+sp_conNo][j]++;
+				}
+			}
+		}
+	}
+	return ret;
+}
+
+EXPORT_SYMBOL(pmic_int_check);
+#endif /* VENDOR_EDIT */
 
 #if IRQ_HANDLER_READY
 /* PWRKEY Int Handler */
@@ -361,7 +726,6 @@ static void oc_int_handler(enum PMIC_IRQ_ENUM intNo, const char *int_name)
 
 	IRQLOG("[%s] int name=%s\n", __func__, int_name);
 	switch (intNo) {
-	case INT_VIO18_OC:
 	case INT_VCN33_OC:
 		/* keep OC interrupt and keep tracking */
 		pr_notice(PMICTAG "[PMIC_INT] PMIC OC: %s\n", int_name);

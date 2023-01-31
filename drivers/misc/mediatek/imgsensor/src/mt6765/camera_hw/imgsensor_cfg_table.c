@@ -29,16 +29,17 @@ enum IMGSENSOR_RETURN
 	/*imgsensor_hw_mt6306_open,*/
 	imgsensor_hw_mclk_open
 };
-
+//zhaiyankun_hq@ODM_HQ.Multimedia.Camera.driver, 2018/12/7, modified for bring up start
 struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 	{
 		IMGSENSOR_SENSOR_IDX_MAIN,
 		IMGSENSOR_I2C_DEV_0,
 		{
 			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
-			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_AVDD},
+			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_AVDD},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DOVDD},
-			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_DVDD},
+			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DVDD},
+			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_AFVDD},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_PDN},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_RST},
 			{IMGSENSOR_HW_ID_NONE, IMGSENSOR_HW_PIN_NONE},
@@ -51,7 +52,7 @@ struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 			{IMGSENSOR_HW_ID_MCLK, IMGSENSOR_HW_PIN_MCLK},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_AVDD},
 			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DOVDD},
-			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_DVDD},
+			{IMGSENSOR_HW_ID_REGULATOR, IMGSENSOR_HW_PIN_DVDD},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_PDN},
 			{IMGSENSOR_HW_ID_GPIO, IMGSENSOR_HW_PIN_RST},
 			{IMGSENSOR_HW_ID_NONE, IMGSENSOR_HW_PIN_NONE},
@@ -99,7 +100,7 @@ struct IMGSENSOR_HW_CFG imgsensor_custom_config[] = {
 
 	{IMGSENSOR_SENSOR_IDX_NONE}
 };
-
+//zhaiyankun_hq@ODM_HQ.Multimedia.Camera.driver, 2018/12/7, modified for bring up end
 struct IMGSENSOR_HW_POWER_SEQ platform_power_sequence[] = {
 #ifdef MIPI_SWITCH
 	{
@@ -690,6 +691,205 @@ struct IMGSENSOR_HW_POWER_SEQ sensor_power_sequence[] = {
 		},
 	},
 #endif
+#ifdef ODM_HQ_EDIT
+//Yankun.Zhai@ODM_HQ.Multimedia.Camera.driver, 2018/12/7, add for bring up start
+#if defined(HI846_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_HI846_MIPI_RAW,
+		{
+			{PDN, Vol_Low, 1},
+			{RST, Vol_Low, 1},
+			{DOVDD, Vol_1800, 5},
+			{AVDD, Vol_2800, 5},
+			{DVDD, Vol_1200, 5},
+			{AFVDD, Vol_2800, 5},
+			{SensorMCLK, Vol_High, 5},
+			{PDN, Vol_High, 5},
+			{RST, Vol_High, 10}
+		},
+	},
+#endif
+#if defined(HI556_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_HI556_MIPI_RAW,
+		{
+			{PDN, Vol_Low, 1},
+			{RST, Vol_Low, 1},
+			{DOVDD, Vol_1800, 1},
+			{AVDD, Vol_2800, 1},
+			{DVDD, Vol_1200, 1},
+			{SensorMCLK, Vol_High, 2},
+			{PDN, Vol_High, 1},
+			{RST, Vol_High, 1}
+		},
+	},
+#endif
+#if defined(GC2375H_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_GC2375H_MIPI_RAW,
+		{
+			{PDN, Vol_High, 0,Vol_Low,1},
+			{RST, Vol_Low, 1,Vol_Low,1},
+			{DOVDD, Vol_1800, 1,Vol_Low,1},
+			{AVDD, Vol_2800, 1,Vol_Low,1},
+			{SensorMCLK, Vol_High, 0,Vol_Low,1},
+			{PDN, Vol_Low, 0, Vol_High,1},
+			{RST, Vol_High, 1, Vol_Low,  1},
+			{PDN, Vol_Low,  0, Vol_High, 1},
+		},
+	},
+#endif
+#if defined(GC5035_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_GC5035_MIPI_RAW,
+		{
+			{PDN, Vol_High, 5},
+			{RST, Vol_Low, 5},
+			{DOVDD, Vol_1800, 5},
+			{DVDD, Vol_1200, 5},
+			{AVDD, Vol_2800, 5},
+			{SensorMCLK, Vol_High, 1},
+			{PDN, Vol_Low, 5},
+			{RST, Vol_High, 5}
+		},
+	},
+#endif
+
+/* chenlijun_hq@ODM_HQ.Multimedia.camera, 2018/12/10, modify for camera bring up*/
+#if defined(S5K3H7YX_MIPI_RAW)
+		{
+			SENSOR_DRVNAME_S5K3H7YX_MIPI_RAW,
+			{
+				{PDN, Vol_Low, 1},
+				{RST, Vol_Low, 1},
+				{DOVDD, Vol_1800, 1},
+				{AVDD, Vol_2800, 1},
+				{DVDD, Vol_1200, 1},
+				{AFVDD, Vol_2800, 1},
+				{SensorMCLK, Vol_High, 2},
+				{PDN, Vol_High, 1},
+				{RST, Vol_High, 1}
+			},
+		},
+#endif
+
+#if defined(S5K3H7YX_TXD_MIPI_RAW)
+		{
+			SENSOR_DRVNAME_S5K3H7YX_TXD_MIPI_RAW,
+			{
+				{PDN, Vol_Low, 1},
+				{RST, Vol_Low, 1},
+				{DOVDD, Vol_1800, 1},
+				{AVDD, Vol_2800, 1},
+				{DVDD, Vol_1200, 1},
+				{AFVDD, Vol_2800, 1},
+				{SensorMCLK, Vol_High, 2},
+				{PDN, Vol_High, 1},
+				{RST, Vol_High, 1}
+			},
+		},
+#endif
+#if defined(SP2509V_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_SP2509V_MIPI_RAW,
+		{
+			{RST, Vol_Low, 0,Vol_Low,1},
+			{PDN, Vol_Low, 0,Vol_Low,1},
+			{PDN, Vol_High, 0,Vol_Low,1},
+			{DOVDD, Vol_1800, 0,Vol_Low,1},
+			{AVDD, Vol_2800, 6, Vol_Low, 1},
+			{PDN, Vol_High, 0, Vol_High, 1},
+			{SensorMCLK, Vol_High, 0, Vol_Low, 1},
+			{PDN, Vol_Low, 4, Vol_Low, 0},
+			{RST, Vol_High, 5, Vol_Low, 1},
+		},
+	},
+#endif
+//Yankun.Zhai@ODM_HQ.Multimedia.Camera.driver, 2018/12/7, add for bring up end
+/* Lijun.Chen@ODM_HQ.Multimedia.camera  compatible camera bring up 20190102 start*/
+#if defined(GC5035_OFG_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_GC5035_OFG_MIPI_RAW,
+		{
+			{PDN, Vol_High, 1},
+			{RST, Vol_Low, 1},
+			{DOVDD, Vol_1800, 1},
+			{DVDD, Vol_1200, 1},
+			{AVDD, Vol_2800, 1},
+			{SensorMCLK, Vol_High, 2},
+			{PDN, Vol_Low, 1},
+			{RST, Vol_High, 1}
+		},
+	},
+#endif
+#if defined(S5K3H7YX_TS_MIPI_RAW)
+		{
+			SENSOR_DRVNAME_S5K3H7YX_TS_MIPI_RAW,
+			{
+				{PDN, Vol_Low, 1},
+				{RST, Vol_Low, 1},
+				{DOVDD, Vol_1800, 1},
+				{AVDD, Vol_2800, 1},
+				{DVDD, Vol_1200, 1},
+				{AFVDD, Vol_2800, 1},
+				{SensorMCLK, Vol_High, 2},
+				{PDN, Vol_High, 1},
+				{RST, Vol_High, 1}
+			},
+		},
+#endif
+#if defined(GC2375H_LY_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_GC2375H_LY_MIPI_RAW,
+		{
+			{PDN, Vol_Low, 5},
+			{RST, Vol_High, 5},
+			{DOVDD, Vol_1800, 5},
+			{AVDD, Vol_2800, 5},
+			{SensorMCLK, Vol_High, 0},
+			{PDN, Vol_High, 5},
+			{RST, Vol_Low, 5}
+		},
+	},
+#endif
+
+/* Lijun.Chen@ODM_HQ.Multimedia.camera  compatible camera bring up 20190102 end*/
+
+//Zezhi.Wang@ODM_HQ.Camera.Driver. 20190129 add for shuimitao
+#if defined(HI1336_MIPI_RAW)
+	{
+		SENSOR_DRVNAME_HI1336_MIPI_RAW,
+		{
+			{PDN, Vol_Low, 5,Vol_Low,1},
+			{RST, Vol_Low, 5,Vol_Low,1},
+			{DOVDD, Vol_1800, 1,Vol_Low,1},
+			{AVDD, Vol_2800, 1,Vol_Low,1},
+			{DVDD, Vol_1100, 1,Vol_Low,1},
+			{SensorMCLK, Vol_High, 5,Vol_Low,1},
+			{AFVDD, Vol_2800, 5,Vol_Low,1},
+			{PDN, Vol_High, 1,Vol_Low,1},
+			{RST, Vol_High, 1,Vol_Low,1},
+		},
+	},
+#endif
+
+//fengbin@ODM_HQ.Camera.Driver. 20190307 add for honeypeatch
+#if defined(S5K3L6_MIPI_RAW)
+     {
+         SENSOR_DRVNAME_S5K3L6_MIPI_RAW,
+         {
+             {SensorMCLK, Vol_High, 0,Vol_Low,1},
+             {RST, Vol_Low, 0,Vol_Low,1},
+             {DOVDD, Vol_1800, 0,Vol_Low,1},
+             {AVDD, Vol_High, 0,Vol_Low,1},
+             {DVDD, Vol_1100, 0,Vol_Low,1},
+             {AFVDD, Vol_2800, 2,Vol_Low,1},
+             {RST, Vol_High, 2,Vol_Low,1},
+         },
+    },
+ #endif
+
+#endif /*ODM_HQ_EDIT*/
 	/* add new sensor before this line */
 	{NULL,},
 };

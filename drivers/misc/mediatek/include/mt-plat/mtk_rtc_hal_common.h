@@ -33,7 +33,20 @@ enum rtc_spare_enum {
 	RTC_PWRON_LOGO,
 	RTC_32K_LESS,
 	RTC_LP_DET,
+/*Liu.Yong@BR.CM.BSP.CHG.Gauge 2020.05.15 add Set monitic soc for RTC*/
+	RTC_MONI_SOC,
 	RTC_FG_INIT,
+	#ifdef VENDOR_EDIT
+	/* Bin.Li@EXP.BSP.bootloader.bootflow, 2017/05/24,, Add for /panic mode/silence mode/meta mode/SAU mode */
+	RTC_REBOOT_KERNEL, // 15
+	RTC_SILENCE_BOOT,
+	RTC_META_BOOT,
+	RTC_SAU_BOOT,
+	RTC_FACTORY_BOOT,
+	RTC_OPPO_BATTERY,
+	RTC_SENSOR_CAUSE_PANIC,
+	RTC_SAFE_BOOT,
+#endif /* VENDOR_EDIT */
 	RTC_SPAR_NUM
 };
 

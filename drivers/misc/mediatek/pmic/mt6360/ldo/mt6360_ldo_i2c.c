@@ -693,6 +693,7 @@ static int mt6360_ldo_parse_dt_data(struct device *dev,
 				  pdata->ldo3_ctrls, MT6360_LDO_CTRLS_NUM);
 	of_property_read_u8_array(np, "ldo5_ctrls",
 				  pdata->ldo5_ctrls, MT6360_LDO_CTRLS_NUM);
+
 bypass_irq_res:
 	dev_dbg(dev, "%s --\n", __func__);
 	return 0;

@@ -25,6 +25,11 @@
 #include <linux/compat.h>
 #endif
 
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
+
 /*************************************************
  *
  **************************************************/
@@ -270,6 +275,14 @@ enum ACDK_SENSOR_FEATURE_ENUM {
 	SENSOR_FEATURE_GET_PERIOD_BY_SCENARIO,
 	SENSOR_FEATURE_GET_BINNING_TYPE,
 	SENSOR_FEATURE_GET_Y_AVERAGE,
+	#ifdef VENDOR_EDIT
+	/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+	SENSOR_FEATURE_CHECK_MODULE_ID,
+	SENSOR_FEATURE_GET_MODULE_SN,
+	SENSOR_FEATURE_SET_SENSOR_OTP,
+	SENSOR_FEATURE_GET_MODULE_INFO,
+	#endif
+	SENSOR_FEATURE_GET_FRAME_CTRL_INFO_BY_SCENARIO,
 	SENSOR_FEATURE_MAX
 };
 
@@ -1085,6 +1098,17 @@ struct IMAGESENSOR_GET_SUPPORTED_ISP_CLK {
 	unsigned char clklevelcnt; /* how many clk levels */
 	unsigned int clklevel[ISP_CLK_LEVEL_CNT]; /* Reocrd each clk level */
 };
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Cam.Drv add for 19551 20191010*/
+#define OPPO_STEREO_CALI_DATA_LENGTH     (1561)
+typedef struct {
+  MUINT32 uSensorId;
+  MUINT32 uDeviceId;
+  MUINT16 baseAddr;
+  MUINT16 dataLength;
+  MUINT8  uData[OPPO_STEREO_CALI_DATA_LENGTH];
+} ACDK_SENSOR_ENGMODE_STEREO_STRUCT, *PACDK_SENSOR_ENGMODE_STEREO_STRUCT;
+#endif
 
 #ifdef CONFIG_COMPAT
 

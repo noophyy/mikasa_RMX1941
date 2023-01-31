@@ -488,7 +488,6 @@ static int kbasep_trace_debugfs_open(struct inode *inode, struct file *file)
 }
 
 static const struct file_operations kbasep_trace_debugfs_fops = {
-	.owner = THIS_MODULE,
 	.open = kbasep_trace_debugfs_open,
 	.read = seq_read,
 	.llseek = seq_lseek,

@@ -84,6 +84,14 @@
 #include "ddp_irq.h"
 #include "ddp_rsz.h"
 
+#ifdef VENDOR_EDIT
+/*
+ * Yongpeng.Yi@PSW.MultiMedia.Display.LCD.Feature, 2018/09/10,
+ * Add for sau and silence close backlight
+ */
+#include <mt-plat/mtk_boot_common.h>
+extern unsigned long silence_mode;
+#endif /*VENDOR_EDIT*/
 #define DDP_OUTPUT_LAYID 4
 
 #if defined MTK_FB_SHARE_WDMA0_SUPPORT
@@ -98,7 +106,6 @@ static int has_memory_session;
 
 static unsigned int session_config[MAX_SESSION_COUNT];
 static DEFINE_MUTEX(disp_session_lock);
-static DEFINE_MUTEX(disp_layer_lock);
 
 static dev_t mtk_disp_mgr_devno;
 static struct cdev *mtk_disp_mgr_cdev;
@@ -1003,11 +1010,6 @@ long _frame_config(unsigned long arg)
 		return -EFAULT;
 	}
 
-	if (disp_validate_ioctl_params(frame_cfg)) {
-		kfree(frame_cfg);
-		return -EINVAL;
-	}
-
 	DISPDBG("%s\n", __func__);
 	frame_cfg->setter = SESSION_USER_HWC;
 
@@ -1017,6 +1019,12 @@ long _frame_config(unsigned long arg)
 	}
 	if (frame_cfg->output_en)
 		output_config_preprocess(frame_cfg);
+
+	if (disp_validate_ioctl_params(frame_cfg)) {
+		disp_input_free_dirty_roi(frame_cfg);
+		kfree(frame_cfg);
+		return -EINVAL;
+	}
 
 	if (DISP_SESSION_TYPE(frame_cfg->session_id) == DISP_SESSION_PRIMARY)
 		primary_display_frame_cfg(frame_cfg);
@@ -1283,9 +1291,7 @@ static long _ioctl_query_valid_layer(unsigned long arg)
 		return -EINVAL;
 	}
 
-	mutex_lock(&disp_layer_lock);
 	layering_rule_start(&disp_info_user, 0);
-	mutex_unlock(&disp_layer_lock);
 
 	if (copy_to_user(argp, &disp_info_user, sizeof(disp_info_user))) {
 		DISPERR("[FB]: copy_to_user failed! line:%d\n", __LINE__);
@@ -1509,6 +1515,13 @@ long mtk_disp_mgr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			return _ioctl_get_display_caps(arg);
 		}
+#ifdef VENDOR_EDIT
+/* Xinqin.Yang@Cam.Tuning.Display, 2018/11/17, add for multi-lcms */
+	case DISP_IOCTL_GET_LCM_MODULE_INFO:
+		{
+			return _ioctl_get_lcm_module_info(arg);
+		}
+#endif /* VENDOR_EDIT */
 	case DISP_IOCTL_GET_VSYNC_FPS:
 		{
 			return _ioctl_get_vsync(arg);
@@ -1859,6 +1872,18 @@ static int mtk_disp_mgr_probe(struct platform_device *pdev)
 	    (struct class_device *)device_create(mtk_disp_mgr_class, NULL,
 	    mtk_disp_mgr_devno, NULL,
 						 DISP_SESSION_DEVICE);
+
+#ifdef VENDOR_EDIT
+	/* Yongpeng.Yi@PSW.MultiMedia.Display.LCD.Feature, 2018/09/10, Add for sau and silence close backlight */
+	if ((oppo_boot_mode == OPPO_SILENCE_BOOT)
+			||(get_boot_mode() == OPPO_SAU_BOOT))
+	{
+		printk("%s OPPO_SILENCE_BOOT set silence_mode to 1\n", __func__);
+		silence_mode = 1;
+//		fp_silence_mode = 1;
+	}
+#endif /*VENDOR_EDIT*/
+
 	disp_sync_init();
 
 	external_display_control_init();

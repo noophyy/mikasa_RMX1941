@@ -228,7 +228,12 @@ static bool mdla_update_lock_power_parameter
 static bool mdla_update_unlock_power_parameter
 	(struct mdla_lock_power *mdla_lock_power);
 static uint8_t mdla_boost_value_to_opp(uint8_t boost_value);
+#ifdef VENDOR_EDIT
+//qinyonghui@Swdp.shanghai, 2019/02/12, export mdla power interface
+int mdla_lock_set_power(struct mdla_lock_power *mdla_lock_power);
+#else
 static int mdla_lock_set_power(struct mdla_lock_power *mdla_lock_power);
+#endif
 
 static inline int Map_MDLA_Freq_Table(int freq_opp)
 {
@@ -3117,7 +3122,12 @@ bool mdla_update_max_opp(struct mdla_lock_power *mdla_lock_power)
 	return ret;
 }
 
+#ifdef VENDOR_EDIT
+//qinyonghui@Swdp.shanghai, 2019/02/12, export mdla power interface
+int mdla_lock_set_power(struct mdla_lock_power *mdla_lock_power)
+#else
 static int mdla_lock_set_power(struct mdla_lock_power *mdla_lock_power)
+#endif
 {
 	int ret = -1;
 	int i, core = -1;
@@ -3158,6 +3168,11 @@ static int mdla_lock_set_power(struct mdla_lock_power *mdla_lock_power)
 	mutex_unlock(&power_lock_mutex);
 	return 0;
 }
+#ifdef VENDOR_EDIT
+//qinyonghui@Swdp.shanghai, 2019/02/12, export mdla power interface
+EXPORT_SYMBOL(mdla_lock_set_power);
+#endif
+
 
 static int mdla_unlock_set_power(struct mdla_lock_power *mdla_lock_power)
 {

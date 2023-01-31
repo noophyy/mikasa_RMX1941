@@ -466,7 +466,10 @@ struct thermal_cooling_device *cdev, unsigned long state)
 		/* To trigger data abort to reset the system
 		 * for thermal protection.
 		 */
+#ifndef VENDOR_EDIT
+/* lizhijie@BSP.CHG.Basic, 2019/11/23, lizhijie Delete for battery protect */
 		BUG();
+#endif
 	}
 	return 0;
 }

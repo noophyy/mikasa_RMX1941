@@ -17,7 +17,6 @@
 
 #include "ccci_fsm_internal.h"
 #include "port_t.h"
-#include "modem_sys.h"
 
 static struct ccci_fsm_ctl *ccci_fsm_entries[MAX_MD_NUM];
 
@@ -26,15 +25,15 @@ static void fsm_finish_command(struct ccci_fsm_ctl *ctl,
 static void fsm_finish_event(struct ccci_fsm_ctl *ctl,
 	struct ccci_fsm_event *event);
 
+static int needforcestop;
 
 
 int force_md_stop(struct ccci_fsm_monitor *monitor_ctl)
 {
 	int ret = -1;
 	struct ccci_fsm_ctl *ctl = fsm_get_entity_by_md_id(monitor_ctl->md_id);
-	struct ccci_modem *md = ccci_md_get_modem_by_id(monitor_ctl->md_id);
 
-	md->needforcestop = 1;
+	needforcestop = 1;
 	ret = fsm_append_command(ctl, CCCI_COMMAND_STOP, 0);
 	CCCI_NORMAL_LOG(monitor_ctl->md_id, FSM,
 			"force md stop\n");
@@ -233,6 +232,8 @@ static void fsm_routine_exception(struct ccci_fsm_ctl *ctl,
 			msleep(EVENT_POLL_INTEVAL);
 		}
 		fsm_md_exception_stage(&ctl->ee_ctl, 2);
+		/*wait until modem memory dump done*/
+		fsm_check_ee_done(&ctl->ee_ctl, EE_DONE_TIMEOUT);
 		break;
 	default:
 		break;
@@ -249,7 +250,6 @@ static void fsm_routine_start(struct ccci_fsm_ctl *ctl,
 	int count = 0, user_exit = 0, hs1_got = 0, hs2_got = 0;
 	struct ccci_fsm_event *event, *next;
 	unsigned long flags;
-	struct ccci_modem *md = ccci_md_get_modem_by_id(ctl->md_id);
 
 	/* 1. state sanity check */
 	if (ctl->curr_state == CCCI_FSM_READY)
@@ -263,7 +263,7 @@ static void fsm_routine_start(struct ccci_fsm_ctl *ctl,
 	ctl->curr_state = CCCI_FSM_STARTING;
 	__pm_stay_awake(&ctl->wakelock);
 	/* 2. poll for critical users exit */
-	while (count < BOOT_TIMEOUT/EVENT_POLL_INTEVAL && !md->needforcestop) {
+	while (count < BOOT_TIMEOUT/EVENT_POLL_INTEVAL && !needforcestop) {
 		if (ccci_port_check_critical_user(ctl->md_id) == 0) {
 			user_exit = 1;
 			break;
@@ -297,7 +297,7 @@ static void fsm_routine_start(struct ccci_fsm_ctl *ctl,
 		goto fail;
 	ctl->boot_count++;
 	count = 0;
-	while (count < BOOT_TIMEOUT/EVENT_POLL_INTEVAL && !md->needforcestop) {
+	while (count < BOOT_TIMEOUT/EVENT_POLL_INTEVAL && !needforcestop) {
 		spin_lock_irqsave(&ctl->event_lock, flags);
 		if (!list_empty(&ctl->event_queue)) {
 			event = list_first_entry(&ctl->event_queue,
@@ -355,7 +355,7 @@ static void fsm_routine_start(struct ccci_fsm_ctl *ctl,
 			count++;
 		msleep(EVENT_POLL_INTEVAL);
 	}
-	if (md->needforcestop) {
+	if (needforcestop) {
 		fsm_finish_command(ctl, cmd, -1);
 		return;
 	}
@@ -394,12 +394,11 @@ static void fsm_routine_stop(struct ccci_fsm_ctl *ctl,
 	unsigned long flags;
 	struct port_t *port = NULL;
 	struct sk_buff *skb = NULL;
-	struct ccci_modem *md = ccci_md_get_modem_by_id(ctl->md_id);
 
 	/* 1. state sanity check */
 	if (ctl->curr_state == CCCI_FSM_GATED)
 		goto success;
-	if (ctl->curr_state != CCCI_FSM_READY && !md->needforcestop
+	if (ctl->curr_state != CCCI_FSM_READY && !needforcestop
 			&& ctl->curr_state != CCCI_FSM_EXCEPTION) {
 		fsm_finish_command(ctl, cmd, -1);
 		fsm_routine_zombie(ctl);
@@ -446,7 +445,7 @@ static void fsm_routine_stop(struct ccci_fsm_ctl *ctl,
 	__pm_relax(&ctl->wakelock);
 	/* 6. always end in stopped state */
 success:
-	md->needforcestop = 0;
+	needforcestop = 0;
 
 	/* when MD is stopped, the skb list of ccci_fs should be clean */
 	port = port_get_by_channel(ctl->md_id, CCCI_FS_RX);

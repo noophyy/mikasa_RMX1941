@@ -70,7 +70,7 @@
                 <debounce_en>Enable</debounce_en>
             </eint2>
             <eint7>
-                <varName>SMART_PA</varName>
+                <varName>ALSPS_MTK</varName>
                 <debounce_time>0</debounce_time>
                 <polarity>Low</polarity>
                 <sensitive_level>Level</sensitive_level>
@@ -97,6 +97,13 @@
                 <sensitive_level>Edge</sensitive_level>
                 <debounce_en>Disable</debounce_en>
             </eint11>
+            <eint12>
+                <varName>GSE_1</varName>
+                <debounce_time>0</debounce_time>
+                <polarity>Low</polarity>
+                <sensitive_level>Level</sensitive_level>
+                <debounce_en>Disable</debounce_en>
+            </eint12>
             <eint23>
                 <varName>RT9465_SLAVE_CHR</varName>
                 <debounce_time>0</debounce_time>
@@ -185,13 +192,13 @@
                 <ies>true</ies>
             </gpio5>
             <gpio6>
-                <eint_mode>true</eint_mode>
+                <eint_mode>false</eint_mode>
                 <def_mode>0</def_mode>
-                <inpull_en>true</inpull_en>
-                <inpull_selhigh>true</inpull_selhigh>
-                <def_dir>IN</def_dir>
+                <inpull_en>false</inpull_en>
+                <inpull_selhigh>false</inpull_selhigh>
+                <def_dir>OUT</def_dir>
                 <out_high>false</out_high>
-                <varName0>GPIO_ALS_EINT_PIN</varName0>
+                <varName0>GPIO_TORCH_EN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio6>
@@ -202,10 +209,11 @@
                 <inpull_selhigh>true</inpull_selhigh>
                 <def_dir>IN</def_dir>
                 <out_high>false</out_high>
-                <varName0>GPIO_SMARTPA_EINT_PIN</varName0>
+                <varName0>GPIO_ALS_EINT_PIN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio7>
+
             <gpio8>
                 <eint_mode>false</eint_mode>
                 <def_mode>7</def_mode>
@@ -257,7 +265,7 @@
                 <inpull_selhigh>true</inpull_selhigh>
                 <def_dir>IN</def_dir>
                 <out_high>false</out_high>
-                <varName0>GPIO_GYRO_EINT_PIN</varName0>
+                <varName0>GPIO_GSE_1_EINT_PIN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio12>
@@ -679,11 +687,12 @@
             </gpio52>
             <gpio53>
                 <eint_mode>false</eint_mode>
-                <def_mode>1</def_mode>
+                <def_mode>0</def_mode>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
-                <def_dir>OUT</def_dir>
+                <def_dir>IN</def_dir>
                 <out_high>false</out_high>
+                <varName0>GPIO_FDD_BAND_SUPPORT_DETECT_3RD_PIN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio53>
@@ -931,21 +940,23 @@
             </gpio78>
             <gpio79>
                 <eint_mode>false</eint_mode>
-                <def_mode>1</def_mode>
+                <def_mode>0</def_mode>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>IN</def_dir>
                 <out_high>false</out_high>
+                <varName0>GPIO_FDD_BAND_SUPPORT_DETECT_2ND_PIN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio79>
             <gpio80>
                 <eint_mode>false</eint_mode>
-                <def_mode>1</def_mode>
+                <def_mode>0</def_mode>
                 <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>IN</def_dir>
                 <out_high>false</out_high>
+                <varName0>GPIO_FDD_BAND_SUPPORT_DETECT_1ST_PIN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio80>
@@ -1092,6 +1103,17 @@
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio93>
+            <gpio94>
+                <eint_mode>false</eint_mode>
+                <def_mode>1</def_mode>
+                <inpull_en>true</inpull_en>
+                <inpull_selhigh>true</inpull_selhigh>
+                <def_dir>IN</def_dir>
+                <out_high>false</out_high>
+                <varName0>GPIO_KPD_KCOL1_PIN</varName0>
+                <smt>false</smt>
+                <ies>true</ies>
+            </gpio94>
             <gpio95>
                 <eint_mode>false</eint_mode>
                 <def_mode>1</def_mode>
@@ -1694,11 +1716,11 @@
             <gpio154>
                 <eint_mode>false</eint_mode>
                 <def_mode>0</def_mode>
-                <inpull_en>false</inpull_en>
+                <inpull_en>true</inpull_en>
                 <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>OUT</def_dir>
-                <out_high>true</out_high>
-                <varName0>GPIO_LCM_LED_EN</varName0>
+                <out_high>false</out_high>
+                <varName0>GPIO_CHG_ENB_PIN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio154>
@@ -1812,6 +1834,16 @@
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio164>
+            <gpio168>
+                <eint_mode>false</eint_mode>
+                <def_mode>0</def_mode>
+                <inpull_en>true</inpull_en>
+                <inpull_selhigh>false</inpull_selhigh>
+                <def_dir>IN</def_dir>
+                <out_high>false</out_high>
+                <smt>false</smt>
+                <ies>true</ies>
+            </gpio168>
             <gpio169>
                 <eint_mode>false</eint_mode>
                 <def_mode>0</def_mode>
@@ -1907,7 +1939,6 @@
                 <inpull_selhigh>false</inpull_selhigh>
                 <def_dir>OUT</def_dir>
                 <out_high>false</out_high>
-                <varName0>GPIO_VCN33_LDO_EN</varName0>
                 <smt>false</smt>
                 <ies>true</ies>
             </gpio178>
@@ -1955,10 +1986,20 @@
                 <pullPushEn>false</pullPushEn>
             </i2c_bus9>
             <device0>
-                <varName>CAP_TOUCH</varName>
+                <varName>CAP_TOUCH_FTS</varName>
                 <channel>I2C_CHANNEL_0</channel>
-                <address>0x5D</address>
+                <address>0x38</address>
             </device0>
+            <device1>
+                <varName>CAP_TOUCH_HX</varName>
+                <channel>I2C_CHANNEL_0</channel>
+                <address>0x48</address>
+            </device1>
+            <device2>
+                <varName>CAP_TOUCH_GT</varName>
+                <channel>I2C_CHANNEL_0</channel>
+                <address>0x5d</address>
+            </device2>
             <device4>
                 <varName>CAMERA_MAIN</varName>
                 <channel>I2C_CHANNEL_2</channel>
@@ -2049,6 +2090,11 @@
                 <channel>I2C_CHANNEL_4</channel>
                 <address>0x11</address>
             </device21>
+            <device22>
+                <varName>CCU_SENSOR_I2C_MAIN2_HW</varName>
+                <channel>I2C_CHANNEL_4</channel>
+                <address>0x12</address>
+            </device22>
         </module>
         <module name="md1_eint">
             <count>3</count>
@@ -2113,7 +2159,7 @@
         <module name="kpd">
             <row>8</row>
             <column>9</column>
-            <keyMatrix>VOLUMEDOWN NC NC NC NC NC NC NC NC
+            <keyMatrix>NC VOLUMEDOWN NC NC NC NC NC NC NC
 				NC NC NC NC NC NC NC NC NC
 				NC NC NC NC NC NC NC NC NC
 				NC NC NC NC NC NC NC NC NC
@@ -2125,7 +2171,7 @@
 				NC NC NC NC
 				NC NC NC NC</keyMatrix_ext>
             <downloadKey>VOLUMEUP VOLUMEDOWN POWER</downloadKey>
-            <modeKey>NC VOLUMEUP VOLUMEDOWN</modeKey>
+            <modeKey>NC VOLUMEDOWN NC</modeKey>
             <pwrKeyEint_gpioNum>0</pwrKeyEint_gpioNum>
             <pwrKeyUtility>POWER</pwrKeyUtility>
             <home_key>VOLUMEUP</home_key>

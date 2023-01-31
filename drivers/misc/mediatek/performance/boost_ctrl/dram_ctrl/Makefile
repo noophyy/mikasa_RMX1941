@@ -13,7 +13,7 @@
 
 #DRAM_CONTROLLER
 
-ifneq (,$(filter $(CONFIG_MTK_PLATFORM), "mt6739" "mt6763" "mt6757"))
+ifneq (,$(filter $(CONFIG_MTK_PLATFORM), "mt6739" "mt6763"))
 	ccflags-y += \
 		-DVCORE_DVFS_OPP_SUPPORT
 

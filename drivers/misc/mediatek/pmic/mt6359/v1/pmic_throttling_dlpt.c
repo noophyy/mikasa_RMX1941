@@ -1143,10 +1143,12 @@ int dlpt_notify_handler(void *unused)
 				power_off_cnt++;
 				pr_info("[DLPT_POWER_OFF_EN] notify SOC=0 to power off, power_off_cnt=%d\n"
 					, power_off_cnt);
-
+#ifndef VENDOR_EDIT
+/* Jianchao.Shi@PSW.BSP.CHG.Basic, 2018/10/16, sjc Delete for remove dlpt shutdown */
 				if (power_off_cnt >= 4)
 					kernel_restart(
 						"DLPT reboot system");
+#endif /* VENDOR_EDIT */
 			} else
 				power_off_cnt = 0;
 		}

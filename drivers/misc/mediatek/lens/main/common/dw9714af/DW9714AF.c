@@ -35,6 +35,11 @@
 #define LOG_INF(format, args...)
 #endif
 
+#ifndef VENDOR_EDIT
+/*Cong.Zhou@HQ 20190428 add for 1922753 dw9714*/
+#define VENDOR_EDIT
+#endif
+
 static struct i2c_client *g_pstAF_I2Cclient;
 static int *g_pAF_Opened;
 static spinlock_t *g_pAF_SpinLock;
@@ -69,10 +74,14 @@ static int s4AF_ReadReg(unsigned short *a_pu2Result)
 static int s4AF_WriteReg(u16 a_u2Data)
 {
 	int i4RetValue = 0;
-
+    #ifdef VENDOR_EDIT
+        /*Cong.Zhou@HQ 20190428 add for 1922753 dw9714*/
 	char puSendCmd[2] = {(char)(a_u2Data >> 4),
-			     (char)((a_u2Data & 0xF) << 4)};
-
+			     (char)(((a_u2Data & 0xF) << 4)|0x07)};
+    #else
+    char puSendCmd[2] = {(char)(a_u2Data >> 4),
+	             (char)((a_u2Data & 0xF) << 4)};
+    #endif
 	g_pstAF_I2Cclient->addr = AF_I2C_SLAVE_ADDR;
 
 	g_pstAF_I2Cclient->addr = g_pstAF_I2Cclient->addr >> 1;
@@ -86,7 +95,46 @@ static int s4AF_WriteReg(u16 a_u2Data)
 
 	return 0;
 }
+#ifdef VENDOR_EDIT
+/*Cong.Zhou@HQ 20190428 add for 1922753 dw9714*/
+static int s4AF_WriteReg_Directly(u16 a_u2Data)
+{
+    int i4RetValue = 0;
 
+    char puSendCmd[2] = { (char)(a_u2Data >> 8), (char)(a_u2Data & 0xFF) };
+    g_pstAF_I2Cclient->addr = AF_I2C_SLAVE_ADDR;
+    g_pstAF_I2Cclient->addr = g_pstAF_I2Cclient->addr >> 1;
+    i4RetValue = i2c_master_send(g_pstAF_I2Cclient, puSendCmd, 2);
+    if (i4RetValue < 0) {
+        LOG_INF("I2C send failed!!\n");
+        return -1;
+    }
+    return 0;
+}
+static int s4AF_esc_mode(void)
+{
+    s4AF_WriteReg_Directly(0x8000);
+    s4AF_WriteReg_Directly(0x0000);
+    mdelay(12);
+    s4AF_WriteReg_Directly(0xECA3);
+    s4AF_WriteReg_Directly(0xA10D);
+    s4AF_WriteReg_Directly(0xF220);
+    s4AF_WriteReg_Directly(0xDC51);
+    return 0;
+}
+#if 0
+static int s4AF_esc_mode_power_off(void)
+{
+    s4AF_WriteReg_Directly(0xECA3);
+    s4AF_WriteReg_Directly(0xA10D);
+    s4AF_WriteReg_Directly(0xF220);
+    s4AF_WriteReg_Directly(0xDC51);
+    s4AF_WriteReg_Directly(0x1900);
+    mdelay(15);
+    return 0;
+}
+#endif
+#endif
 static inline int getAFInfo(__user struct stAF_MotorInfo *pstMotorInfo)
 {
 	struct stAF_MotorInfo stMotorInfo;
@@ -117,9 +165,13 @@ static int initAF(void)
 
 	if (*g_pAF_Opened == 1) {
 
-		spin_lock(g_pAF_SpinLock);
-		*g_pAF_Opened = 2;
-		spin_unlock(g_pAF_SpinLock);
+	   spin_lock(g_pAF_SpinLock);
+	   *g_pAF_Opened = 2;
+	   spin_unlock(g_pAF_SpinLock);
+#ifdef VENDOR_EDIT
+        /*CongZhou@HQ 20190428 add for 1922753 dw9714*/
+          s4AF_esc_mode();
+#endif
 	}
 
 	LOG_INF("-\n");
@@ -202,8 +254,47 @@ int DW9714AF_Release(struct inode *a_pstInode, struct file *a_pstFile)
 	LOG_INF("Start\n");
 
 	if (*g_pAF_Opened == 2) {
-		LOG_INF("Wait\n");
-		s4AF_WriteReg(0x80); /* Power down mode */
+	  LOG_INF("Wait\n");
+#ifdef VENDOR_EDIT
+      /*CongZhou@HQ 20190428 modify for update dw9714 driver*/
+      //s4AF_WriteReg(0x80); /* Power down mode */
+      //s4AF_esc_mode_power_off();
+      /*Cong.Zhou@ODM_HQ 20190830 for improve rear cam switch to front cam performance*/
+      s4AF_WriteReg(400);
+      mdelay(10);
+      s4AF_WriteReg_Directly(0xECA3);
+      s4AF_WriteReg_Directly(0xA105);
+      s4AF_WriteReg_Directly(0xF270);
+      s4AF_WriteReg_Directly(0xDC51);
+      s4AF_WriteReg(360);
+      mdelay(8);
+      s4AF_WriteReg(320);
+      mdelay(8);
+      s4AF_WriteReg(300);
+      mdelay(8);
+      s4AF_WriteReg(280);
+      mdelay(8);
+      s4AF_WriteReg(260);
+      mdelay(8);
+      s4AF_WriteReg(240);
+      mdelay(8);
+      s4AF_WriteReg(220);
+      mdelay(8);
+      s4AF_WriteReg(200);
+      mdelay(8);
+      s4AF_WriteReg(180);
+      mdelay(8);
+      s4AF_WriteReg(160);
+      mdelay(8);
+      s4AF_WriteReg(140);
+      mdelay(8);
+      s4AF_WriteReg(100);
+      mdelay(8);
+      s4AF_WriteReg(60);
+      mdelay(8);
+      s4AF_WriteReg(20);
+      mdelay(8);
+#endif
 	}
 
 	if (*g_pAF_Opened) {

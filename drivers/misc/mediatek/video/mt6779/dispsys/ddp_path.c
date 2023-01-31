@@ -1015,10 +1015,7 @@ int ddp_insert_config_allow_rec(void *handle)
 {
 	int ret = 0;
 
-	if (handle == NULL) {
-		ASSERT(0);
-		return -1;
-	}
+	ASSERT(handle);
 
 	if (primary_display_is_video_mode())
 		ret = cmdqRecWaitNoClear(handle, CMDQ_EVENT_MUTEX0_STREAM_EOF);
@@ -1032,10 +1029,7 @@ int ddp_insert_config_dirty_rec(void *handle)
 {
 	int ret = 0;
 
-	if (handle == NULL) {
-		ASSERT(0);
-		return -1;
-	}
+	ASSERT(handle);
 
 	if (primary_display_is_video_mode()) /* TODO: modify this */
 		; /* do nothing */

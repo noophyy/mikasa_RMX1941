@@ -38,10 +38,17 @@
 #include <archcounter_timesync.h>
 
 #include "lens_info.h"
+#ifndef VENDOR_EDIT
+#define VENDOR_EDIT
+#endif
 #include "lens_list.h"
 
+#ifdef VENDOR_EDIT
+/*Henry.Chang@Camera.Drv add for sub2af 20191028*/
+#define AF_DRVNAME "SUB2AF"
+#else
 #define AF_DRVNAME "SUBAF"
-
+#endif
 #if defined(CONFIG_MTK_LEGACY)
 #define I2C_CONFIG_SETTING 1
 #elif defined(CONFIG_OF)

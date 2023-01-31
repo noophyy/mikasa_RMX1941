@@ -341,7 +341,7 @@ struct disp_frame_cfg_t {
 	unsigned int hrt_weight;
 	unsigned int hrt_idx;
 
-	bool hbm_en;
+	unsigned int hbm_en;
 
 	/*DynFPS*/
 	int active_config;
@@ -479,8 +479,6 @@ enum LAYERING_CAPS {
 	MDP_ROT_LAYER =		0x00000008,
 	MDP_HDR_LAYER =		0x00000010,
 	NO_FBDC =		0x00000020,
-	CLIENT_CLEAR_LAYER =    0x00000040,
-	DISP_CLIENT_CLEAR_LAYER =   0x00000080
 };
 
 struct layer_config {

@@ -1745,7 +1745,7 @@ static int (*idle_select_handlers[NR_TYPES]) (int) = {
 
 
 
-int mt_idle_select(int cpu)
+int mtk_idle_select(int cpu)
 {
 	int i = NR_TYPES - 1;
 
@@ -1766,12 +1766,11 @@ int dpidle_enter(int cpu)
 
 	mtk_idle_ratio_calc_start(IDLE_TYPE_DP, cpu);
 
-	RCU_NONIDLE(dpidle_pre_handler());
+	dpidle_pre_handler();
 #ifndef CONFIG_MTK_FPGA
-	RCU_NONIDLE(spm_go_to_dpidle(slp_spm_deepidle_flags, (u32)cpu,
-			dpidle_dump_log));
+	spm_go_to_dpidle(slp_spm_deepidle_flags, (u32)cpu, dpidle_dump_log);
 #endif
-	RCU_NONIDLE(dpidle_post_handler());
+	dpidle_post_handler();
 
 	mtk_idle_ratio_calc_stop(IDLE_TYPE_DP, cpu);
 
@@ -1827,7 +1826,7 @@ int soidle3_enter(int cpu)
 
 	mtk_idle_ratio_calc_start(IDLE_TYPE_SO3, cpu);
 
-	RCU_NONIDLE(soidle_pre_handler());
+	soidle_pre_handler();
 	soidle3_update_flags();
 
 #ifdef DEFAULT_MMP_ENABLE
@@ -1835,15 +1834,15 @@ int soidle3_enter(int cpu)
 			 MMPROFILE_FLAG_START, 0, 0);
 #endif /* DEFAULT_MMP_ENABLE */
 
-	RCU_NONIDLE(spm_go_to_sodi3(slp_spm_SODI3_flags, (u32)cpu,
-			sodi3_flags|SODI_FLAG_3P0));
+	spm_go_to_sodi3(slp_spm_SODI3_flags, (u32)cpu,
+			sodi3_flags|SODI_FLAG_3P0);
 
 #ifdef DEFAULT_MMP_ENABLE
 	mmprofile_log_ex(sodi_mmp_get_events()->sodi_enable,
 			 MMPROFILE_FLAG_END, 0, spm_read(SPM_PASR_DPD_3));
 #endif /* DEFAULT_MMP_ENABLE */
 
-	RCU_NONIDLE(soidle_post_handler());
+	soidle_post_handler();
 
 	mtk_idle_ratio_calc_stop(IDLE_TYPE_SO3, cpu);
 
@@ -1883,21 +1882,21 @@ int soidle_enter(int cpu)
 
 	mtk_idle_ratio_calc_start(IDLE_TYPE_SO, cpu);
 
-	RCU_NONIDLE(soidle_pre_handler());
+	soidle_pre_handler();
 
 #ifdef DEFAULT_MMP_ENABLE
 	mmprofile_log_ex(sodi_mmp_get_events()->sodi_enable,
 			 MMPROFILE_FLAG_START, 0, 0);
 #endif /* DEFAULT_MMP_ENABLE */
 
-	RCU_NONIDLE(spm_go_to_sodi(slp_spm_SODI_flags, (u32)cpu, sodi_flags));
+	spm_go_to_sodi(slp_spm_SODI_flags, (u32)cpu, sodi_flags);
 
 #ifdef DEFAULT_MMP_ENABLE
 	mmprofile_log_ex(sodi_mmp_get_events()->sodi_enable,
 			 MMPROFILE_FLAG_END, 0, spm_read(SPM_PASR_DPD_3));
 #endif /* DEFAULT_MMP_ENABLE */
 
-	RCU_NONIDLE(soidle_post_handler());
+	soidle_post_handler();
 
 	mtk_idle_ratio_calc_stop(IDLE_TYPE_SO, cpu);
 

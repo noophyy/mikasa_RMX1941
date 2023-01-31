@@ -41,6 +41,11 @@
 #include "ccu_inc.h"
 #endif
 
+#ifdef VENDOR_EDIT
+/* Bin.Liu@RM.Cam, 20200619, Add for camera devinfo */
+#include <linux/hq_devinfo.h>
+#endif
+
 #include "kd_camera_typedef.h"
 #include "kd_imgsensor.h"
 #include "kd_imgsensor_define.h"
@@ -78,6 +83,8 @@ static struct cdev *gpimgsensor_cdev;
 static struct class *gpimgsensor_class;
 
 static DEFINE_MUTEX(gimgsensor_mutex);
+
+static DEFINE_MUTEX(gimgsensor_open_mutex);
 
 struct IMGSENSOR  gimgsensor;
 struct IMGSENSOR *pgimgsensor = &gimgsensor;
@@ -478,6 +485,11 @@ static inline int imgsensor_check_is_alive(struct IMGSENSOR_SENSOR *psensor)
 	return err ? -EIO:err;
 }
 
+#ifdef VENDOR_EDIT
+/* Bin.Liu@RM.Cam, 20200619, Add for camera devinfo */
+extern Cam_buff cam_buff;
+#endif
+
 /************************************************************************
  * imgsensor_set_driver
  ************************************************************************/
@@ -593,6 +605,16 @@ int imgsensor_set_driver(struct IMGSENSOR_SENSOR *psensor)
 					    psensor->inst.sensor_idx,
 					    drv_idx,
 					    psensor_inst->psensor_name);
+#ifdef VENDOR_EDIT
+					/* Bin.Liu@RM.Cam, 20200619, Add for camera devinfo */
+					if (0 == psensor->inst.sensor_idx) {
+  						strcpy(cam_buff.cam_b_name,psensor_inst->psensor_name);
+  					} else if (1 == psensor->inst.sensor_idx) {
+  						strcpy(cam_buff.cam_f_name,psensor_inst->psensor_name);
+  					} else if (2 == psensor->inst.sensor_idx) {
+  						strcpy(cam_buff.cam_b2_name,psensor_inst->psensor_name);
+  					}
+#endif
 
 					ret = drv_idx;
 					break;
@@ -2650,6 +2672,8 @@ CAMERA_HW_Ioctl_EXIT:
 
 static int imgsensor_open(struct inode *a_pstInode, struct file *a_pstFile)
 {
+	mutex_lock(&gimgsensor_open_mutex);
+
 	if (atomic_read(&pgimgsensor->imgsensor_open_cnt) == 0)
 		imgsensor_clk_enable_all(&pgimgsensor->clk);
 
@@ -2658,12 +2682,16 @@ static int imgsensor_open(struct inode *a_pstInode, struct file *a_pstFile)
 	    "%s %d\n",
 	    __func__,
 	    atomic_read(&pgimgsensor->imgsensor_open_cnt));
+
+	mutex_unlock(&gimgsensor_open_mutex);
+
 	return 0;
 }
 
 static int imgsensor_release(struct inode *a_pstInode, struct file *a_pstFile)
 {
 	enum IMGSENSOR_SENSOR_IDX i = IMGSENSOR_SENSOR_IDX_MIN_NUM;
+	mutex_lock(&gimgsensor_open_mutex);
 	atomic_dec(&pgimgsensor->imgsensor_open_cnt);
 	if (atomic_read(&pgimgsensor->imgsensor_open_cnt) == 0) {
 		imgsensor_clk_disable_all(&pgimgsensor->clk);
@@ -2682,6 +2710,7 @@ static int imgsensor_release(struct inode *a_pstInode, struct file *a_pstFile)
 	    "%s %d\n",
 	    __func__,
 	    atomic_read(&pgimgsensor->imgsensor_open_cnt));
+        mutex_unlock(&gimgsensor_open_mutex);
 	return 0;
 }
 

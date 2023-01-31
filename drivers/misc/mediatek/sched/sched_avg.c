@@ -297,6 +297,24 @@ void sched_max_util_task(int *cpu, int *pid, int *util, int *boost)
 }
 EXPORT_SYMBOL(sched_max_util_task);
 
+#ifdef VENDOR_EDIT
+unsigned long sched_get_capacity_orig(int cpu)
+{
+	unsigned long capacity, flags;
+	struct rq *rq = cpu_rq(cpu);
+	raw_spin_lock_irqsave(&rq->lock, flags);
+	capacity = capacity_orig_of(cpu);
+	raw_spin_unlock_irqrestore(&rq->lock, flags);
+
+	return capacity;
+}
+unsigned int sched_get_percpu_load(int cpu, bool reset, bool use_maxfreq);
+unsigned int sched_get_cpu_util(int cpu)
+{
+        return  sched_get_percpu_load(cpu, 1, 1);
+}
+#endif
+
 /**
  * sched_get_nr_running_avg
  * @return: Average nr_running and iowait value since last poll.

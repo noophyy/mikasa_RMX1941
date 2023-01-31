@@ -28,6 +28,14 @@
 #include "disp_drv_platform.h"
 #include "mtk_dramc.h"
 
+#ifdef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+#include "mtk_boot_common.h"
+#endif
+
 #define OVL_REG_BACK_MAX	(40)
 #define OVL_LAYER_OFFSET	(0x20)
 #define OVL_RDMA_DEBUG_OFFSET	(0x4)
@@ -270,6 +278,14 @@ static void _get_roi(enum DISP_MODULE_ENUM module,
 	*bg_h = ovl_bg_h[idx];
 }
 
+#ifdef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+static int meta_mode_set_once = 0;
+#endif
+
 int ovl_roi(enum DISP_MODULE_ENUM module, unsigned int bg_w, unsigned int bg_h,
 	    unsigned int bg_color, void *handle)
 {
@@ -283,7 +299,22 @@ int ovl_roi(enum DISP_MODULE_ENUM module, unsigned int bg_w, unsigned int bg_h,
 	DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_SIZE,
 		bg_h << 16 | bg_w);
 
+#ifndef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
 	DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_BGCLR, bg_color);
+#else
+	if (get_boot_mode() == META_BOOT) {
+		if (meta_mode_set_once == 0) {
+			DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_BGCLR, bg_color);
+			meta_mode_set_once = 1;
+		}
+	} else {
+		DISP_REG_SET(handle, ovl_base + DISP_REG_OVL_ROI_BGCLR, bg_color);
+	}
+#endif
 
 	DISP_REG_SET_FIELD(handle, FLD_OVL_LC_SRC_W,
 			ovl_base + DISP_REG_OVL_LC_SRC_SIZE, bg_w);
@@ -658,13 +689,16 @@ static int ovl_layer_config(enum DISP_MODULE_ENUM module, unsigned int layer,
 		size = (dst_h - 1) * cfg->src_pitch + dst_w * Bpp;
 		m4u_port = module_to_m4u_port(module);
 		if (cfg->security != DISP_SECURE_BUFFER) {
-			DISP_REG_SET(handle, DISP_REG_OVL_L0_ADDR +
-				layer_offset_addr, cfg->addr + offset);
 			/*
 			 * ovl is sec but this layer is non-sec
 			 * we need to tell cmdq to help map non-sec mva
 			 * to sec mva
 			 */
+			cmdqRecWriteSecure(handle,
+				disp_addr_convert(DISP_REG_OVL_L0_ADDR +
+					layer_offset_addr),
+				CMDQ_SAM_NMVA_2_MVA, cfg->addr + offset,
+				0, size, m4u_port);
 
 			if (layer == 0)
 				DISP_REG_SET_FIELD(handle, OVL_SECURE_FLD_L0_EN,
@@ -972,7 +1006,6 @@ static inline int ovl_switch_to_sec(enum DISP_MODULE_ENUM module, void *handle)
 int ovl_switch_to_nonsec(enum DISP_MODULE_ENUM module, void *handle)
 {
 	unsigned int ovl_idx = ovl_to_index(module);
-#if 0
 	enum CMDQ_ENG_ENUM cmdq_engine;
 	enum CMDQ_EVENT_ENUM cmdq_event_nonsec_end;
 
@@ -1036,7 +1069,6 @@ int ovl_switch_to_nonsec(enum DISP_MODULE_ENUM module, void *handle)
 		mmprofile_log_ex(ddp_mmp_get_events()->svp_module[module],
 				 MMPROFILE_FLAG_END, 0, 0);
 	}
-#endif
 	ovl_is_sec[ovl_idx] = 0;
 
 	return 0;
@@ -1628,6 +1660,15 @@ static int ovl_config_l(enum DISP_MODULE_ENUM module,
 	unsigned int bb = 0;
 #endif
 
+#ifdef VENDOR_EDIT
+/*
+ * Ling.Guo@PSW.MM.Display.LCD.Feature, 2017/08/07
+ * Add for MATE mode switch RGB display
+ */
+	if (get_boot_mode() == META_BOOT) {
+		gOVLBackground = 0xFF00FF00;
+	}
+#endif
 	if (pConfig->dst_dirty)
 		ovl_roi(module, pConfig->dst_w, pConfig->dst_h, gOVLBackground,
 			handle);

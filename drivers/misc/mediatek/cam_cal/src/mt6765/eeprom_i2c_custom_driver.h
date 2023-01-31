@@ -24,4 +24,35 @@ unsigned int Custom_read_region(struct i2c_client *client,
 				unsigned char *data,
 				unsigned int size);
 
+#ifdef ODM_HQ_EDIT
+// Yankun.Zhai@ODM_HQ.Multimedia.camera 2018/12/7 add for camera bring up
+unsigned int Hi556_read_region(struct i2c_client *client,
+                unsigned int addr,
+                unsigned char *data,
+                unsigned int size);
+
+unsigned int s5k3h7yx_read_region(struct i2c_client *client,
+                unsigned int addr,
+                unsigned char *data,
+                unsigned int size);
+
+unsigned int gc5035_read_region(struct i2c_client *client,
+                unsigned int addr,
+                unsigned char *data,
+                unsigned int size);
+unsigned int s5k3h7yx_txd_read_region(struct i2c_client *client,
+                unsigned int addr,
+                unsigned char *data,
+                unsigned int size);
+
+unsigned int gc5035_ofg_read_region(struct i2c_client *client,
+                unsigned int addr,
+                unsigned char *data,
+                unsigned int size);
+unsigned int s5k3h7yx_ts_read_region(struct i2c_client *client,
+                unsigned int addr,
+                unsigned char *data,
+                unsigned int size);
+
+#endif
 #endif				/* __CAM_CAL_LIST_H */

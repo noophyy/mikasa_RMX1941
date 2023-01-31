@@ -388,6 +388,11 @@ static s32 cmdq_driver_copy_meta(void *src, void **dest, size_t copy_size,
 }
 #endif
 
+#ifdef CMDQ_SECURE_PATH_SUPPORT
+#include <linux/atomic.h>
+static atomic_t m4u_init = ATOMIC_INIT(0);
+#endif
+
 static long cmdq_driver_create_secure_medadata(
 	struct cmdqCommandStruct *pCommand)
 {
@@ -419,8 +424,7 @@ static long cmdq_driver_create_secure_medadata(
 	/* always clear to prevent free unknown memory */
 	pCommand->secData.addrMetadatas = 0;
 	for (i = 0; i < ARRAY_SIZE(pCommand->secData.ispMeta.ispBufs); i++) {
-		isp_bufs[i] = (void *)(unsigned long)
-			pCommand->secData.ispMeta.ispBufs[i].va;
+		isp_bufs[i] = (void *)pCommand->secData.ispMeta.ispBufs[i].va;
 		pCommand->secData.ispMeta.ispBufs[i].va = 0;
 	}
 
@@ -488,6 +492,10 @@ static long cmdq_driver_create_secure_medadata(
 #if 0
 	cmdq_core_dump_secure_metadata(&(pCommand->secData));
 #endif
+
+	/* do m4u sec init */
+	if (atomic_cmpxchg(&m4u_init, 0, 1) == 0)
+		m4u_sec_init();
 #else
 	pCommand->secData.addrMetadatas = 0;
 	pCommand->secData.addrMetadataCount = 0;
@@ -844,17 +852,14 @@ s32 cmdq_driver_ioctl_async_job_exec(struct file *pf,
 	/* free secure path metadata */
 	cmdq_driver_destroy_secure_medadata(&job.command);
 
-	/* privateData can reset since it has passed to handle */
-	job.command.privateData = 0;
-
 	INIT_LIST_HEAD(&mapping_job->list_entry);
-	mutex_lock(&cmdq_job_mapping_list_mutex);
 	if (job_mapping_idx == 0)
 		job_mapping_idx = 1;
 	mapping_job->id = job_mapping_idx;
 	job.hJob = job_mapping_idx;
 	job_mapping_idx++;
 	mapping_job->job = handle;
+	mutex_lock(&cmdq_job_mapping_list_mutex);
 	list_add_tail(&mapping_job->list_entry, &job_mapping_list);
 	mutex_unlock(&cmdq_job_mapping_list_mutex);
 	CMDQ_MSG(
@@ -996,7 +1001,12 @@ s32 cmdq_driver_ioctl_async_job_wait_and_close(unsigned long param)
 			exec_cost, handle);
 
 	/* task now can release */
+	exec_cost = sched_clock();
 	cmdq_task_destroy(handle);
+	exec_cost = div_s64(sched_clock() - exec_cost, 1000);
+	if (exec_cost > 3000)
+		CMDQ_LOG("[warn]destroy resource cost:%lluus handle:0x%p\n",
+			exec_cost, handle);
 
 	return 0;
 }
