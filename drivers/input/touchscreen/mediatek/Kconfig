@@ -44,10 +44,35 @@ config TOUCHSCREEN_MTK_SOLOMON
 source "drivers/input/touchscreen/mediatek/SOLOMON/Kconfig"
 
 config TOUCHSCREEN_MTK_FOCALTECH_TS
-	bool "FOCALTECH_TS for Mediatek package"
+        bool "FT5446 for Mediatek package"
+        default n
+        help
+          Say Y here if you have focaltech_touch touch panel.
+
+          If unsure, say N.
+
+          To compile this dirver as a module, choose M here: the
+          module will be called.
+
+source "drivers/input/touchscreen/mediatek/ft5446/Kconfig"
+
+config TOUCHSCREEN_HIMAX_CHIPSET
+    bool "Himax touchpanel CHIPSET"
+    depends on I2C
+    help
+      Say Y here if you have a Himax CHIPSET touchscreen.
+      HIMAX controllers are multi touch controllers which can
+      report 10 touches at a time.
+
+      If unsure, say N.
+source "drivers/input/touchscreen/mediatek/hx8527/Kconfig"
+
+#Wenchao.Du@ODM_HQ.BSP.TP  2019/01/17 add for TP drivers
+config TOUCHSCREEN_MTK_GT9XX
+	bool "GOODDIX_UPDATE_GT9XX for Mediatek package"
 	default n
 	help
-	  Say Y here if you have focaltech_touch touch panel.
+	  Say Y here if you have GT9XX touch panel.
 
 	  If unsure, say N.
 
@@ -55,6 +80,7 @@ config TOUCHSCREEN_MTK_FOCALTECH_TS
 	  module will be called.
 
 source "drivers/input/touchscreen/mediatek/focaltech_touch/Kconfig"
+source "drivers/input/touchscreen/mediatek/gt9xx_mtk/Kconfig"
 config TOUCHSCREEN_MTK_GT1151
 	bool "GT1151 for Mediatek package"
 	default n

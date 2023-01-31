@@ -205,7 +205,7 @@ static void kpd_keymap_handler(unsigned long data)
 			if (hw_keycode >= KPD_NUM_KEYS)
 				continue;
 
-			/* bit is 1: not pressed, 0: pressed */
+			 //bit is 1: not pressed, 0: pressed
 			pressed = ((new_state[i] & mask) == 0U) ? 1 : 0;
 			kpd_print("(%s) HW keycode = %d\n",
 				(pressed == 1) ? "pressed" : "released",
